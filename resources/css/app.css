@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+
+@plugin '@tailwindcss/forms';
+
+@custom-variant collapsed (&:where(.sidebar-collapsed, .sidebar-collapsed *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../../app/**/*.php';
+@source '../../config/agri.php';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+
+    --color-brand-50: #f0f9f3;
+    --color-brand-100: #dcf1e3;
+    --color-brand-200: #bbe2c9;
+    --color-brand-300: #8ccca7;
+    --color-brand-400: #5aae7f;
+    --color-brand-500: #379163;
+    --color-brand-600: #2f855a;
+    --color-brand-700: #22603f;
+    --color-brand-800: #1e4d35;
+    --color-brand-900: #193f2d;
+    --color-brand-950: #0c2318;
+
+    --shadow-card: 0 1px 2px 0 rgb(28 25 23 / 0.04), 0 1px 3px 0 rgb(28 25 23 / 0.04);
+    --shadow-pop: 0 10px 30px -10px rgb(28 25 23 / 0.18), 0 4px 10px -4px rgb(28 25 23 / 0.08);
+}
+
+@layer base {
+    html {
+        -webkit-font-smoothing: antialiased;
+    }
+
+    html:lang(ur) {
+        --font-sans: 'Inter', 'Noto Nastaliq Urdu', ui-sans-serif, system-ui, sans-serif;
+        --text-xs--line-height: 2;
+        --text-sm--line-height: 2.1;
+        --text-base--line-height: 2.1;
+        --text-lg--line-height: 2.1;
+        --text-xl--line-height: 2.1;
+        --text-2xl--line-height: 2;
+    }
+
+
+    body {
+        @apply bg-stone-50 text-stone-800;
+        font-feature-settings: 'cv11', 'ss01';
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    ::selection {
+        @apply bg-brand-100 text-brand-900;
+    }
+}
+
+@layer components {
+    .form-control {
+        @apply block w-full rounded-lg border-stone-300 bg-white text-sm text-stone-800 shadow-xs placeholder:text-stone-400 focus:border-brand-500 focus:ring-brand-500/30 focus:ring-3;
+    }
+
+    .form-control[aria-invalid='true'],
+    form.was-validated .form-control:invalid {
+        @apply border-red-400 focus:border-red-500 focus:ring-red-500/20;
+    }
+
+    .field-error {
+        @apply mt-1.5 hidden text-xs text-red-600;
+    }
+
+    form.was-validated .field:has(:invalid) .field-error {
+        @apply block;
+    }
+
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-stone-300) transparent;
+    }
+}
