@@ -41,7 +41,7 @@ class CostReport
             ->leftJoin('expense_categories as p', 'p.id', '=', 'c.parent_id')
             ->where('v.season_stage_id', $stageId)
             ->groupBy('c.id', 'c.name', 'p.name')
-            ->selectRaw('c.name as name, p.name as parent, SUM(v.amount) as total, COUNT(*) as lines')
+            ->selectRaw('c.name as name, p.name as parent, SUM(v.amount) as total, COUNT(*) as `lines`')
             ->orderByDesc('total')
             ->get();
     }
