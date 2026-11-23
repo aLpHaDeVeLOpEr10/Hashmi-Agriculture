@@ -8,6 +8,7 @@ use App\Http\Controllers\MachineryController;
 use App\Http\Controllers\OfflineController;
 use App\Http\Controllers\PayableController;
 use App\Http\Controllers\ProductionController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecurringController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SeasonController;
@@ -28,6 +29,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/', DashboardController::class)->name('dashboard');
+
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     Route::resource('seasons', SeasonController::class)->except('destroy');
     Route::patch('/seasons/{season}/status', [SeasonController::class, 'status'])->name('seasons.status');

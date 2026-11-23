@@ -737,5 +737,16 @@
     "Create a batch when you start filling a bunker.": "جب بنکر بھرنا شروع کریں تو بیچ بنائیں۔",
     "e.g. Bunker 2": "مثلاً بنکر 2",
     "measured from bunkers": "بنکروں سے ناپا گیا",
-    "Bunker measurement": "بنکر کی پیمائش"
+    "Bunker measurement": "بنکر کی پیمائش",
+    "My profile": "میری پروفائل",
+    "Profile information": "پروفائل کی معلومات",
+    "Your mobile number is what you use to sign in.": "آپ کا موبائل نمبر ہی آپ کا سائن اِن ہے۔",
+    "Save profile": "پروفائل محفوظ کریں",
+    "Change password": "پاس ورڈ تبدیل کریں",
+    "Enter your current password, then choose a new one.": "اپنا موجودہ پاس ورڈ درج کریں، پھر نیا منتخب کریں۔",
+    "Current password": "موجودہ پاس ورڈ",
+    "New password": "نیا پاس ورڈ",
+    "Confirm new password": "نئے پاس ورڈ کی تصدیق کریں",
+    "Profile updated.": "پروفائل اپ ڈیٹ ہو گئی۔",
+    "Password changed.": "پاس ورڈ تبدیل ہو گیا۔"
 }

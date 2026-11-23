@@ -64,13 +64,14 @@
         </nav>
 
         <div class="shrink-0 border-t border-stone-100 p-3">
-            <div class="mb-2 flex items-center gap-3 rounded-lg px-3 py-2 lg:collapsed:hidden">
+            <a href="{{ route('profile.edit') }}" title="{{ __('My profile') }}" @if (request()->routeIs('profile.*')) aria-current="page" @endif
+                class="mb-2 flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-stone-100 aria-[current=page]:bg-stone-100 lg:collapsed:hidden">
                 <x-avatar :name="auth()->user()->name" class="size-8" />
                 <div class="min-w-0 leading-tight">
                     <p class="truncate text-sm font-medium text-stone-800">{{ auth()->user()->name }}</p>
                     <p class="text-xs text-stone-500">{{ \App\Models\User::roleLabel(auth()->user()->role) }}</p>
                 </div>
-            </div>
+            </a>
             <form method="POST" action="{{ route('logout') }}" data-logout>
                 @csrf
                 <button type="submit" title="{{ __('Logout') }}"

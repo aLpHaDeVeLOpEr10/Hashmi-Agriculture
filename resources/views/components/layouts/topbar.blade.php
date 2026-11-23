@@ -109,6 +109,7 @@
                     <p class="truncate text-xs text-stone-500" dir="ltr">{{ \App\Support\Phone::display($user->phone) }}</p>
                 </div>
                 <div class="py-1">
+                    <x-dropdown-item icon="circle-user" :href="route('profile.edit')">{{ __('My profile') }}</x-dropdown-item>
                     @can('manage-settings')
                         <x-dropdown-item icon="settings" :href="route('settings.index')">{{ __('Settings') }}</x-dropdown-item>
                     @endcan
