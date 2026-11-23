@@ -15,7 +15,7 @@
                 <rect width="100%" height="100%" fill="url(#rows)" />
             </svg>
             <div class="relative flex items-center gap-3 text-white">
-                <span class="grid size-10 place-items-center rounded-lg bg-white/10 ring-1 ring-white/20"><x-icon name="wheat" class="size-6" stroke="2" /></span>
+                <span class="grid size-12 place-items-center rounded-xl bg-[#fafdf6] p-1 shadow-sm"><img src="{{ asset('images/logo-mark.png') }}" alt="" class="size-full object-contain"></span>
                 <span class="text-lg font-semibold">{{ config('agri.name') }}</span>
             </div>
             <div class="relative max-w-md">
@@ -33,11 +33,8 @@
                         <x-icon name="languages" class="size-4" /> {{ app()->getLocale() === 'ur' ? 'English' : 'اردو' }}
                     </button>
                 </form>
-                <div class="flex items-center gap-3 lg:hidden">
-                    <span class="grid size-10 place-items-center rounded-lg bg-brand-600 text-white"><x-icon name="wheat" class="size-6" stroke="2" /></span>
-                    <span class="text-lg font-semibold text-stone-900">{{ config('agri.name') }}</span>
-                </div>
-                <h1 class="mt-8 text-2xl font-semibold text-stone-900 lg:mt-0">{{ __('Sign in to your farm') }}</h1>
+                <img src="{{ asset('images/logo-full.jpg') }}" alt="{{ config('agri.name') }}" class="mx-auto h-36 w-auto mix-blend-multiply sm:h-44">
+                <h1 class="mt-8 text-2xl font-semibold text-stone-900">{{ __('Sign in to your farm') }}</h1>
                 <p class="mt-2 text-sm text-stone-500">{{ __('Use the mobile number registered by your farm owner.') }}</p>
 
                 <form method="POST" action="{{ url('/login') }}" class="mt-8 space-y-5" novalidate x-data="validatedForm" x-on:submit="submit($event)">

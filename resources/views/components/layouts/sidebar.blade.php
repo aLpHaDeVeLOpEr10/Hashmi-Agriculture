@@ -15,9 +15,7 @@
 
         <div class="flex h-16 shrink-0 items-center gap-3 border-b border-stone-100 px-5 lg:collapsed:justify-center lg:collapsed:px-0">
             <a href="{{ route('dashboard') }}" class="flex min-w-0 items-center gap-3">
-                <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-600 text-white shadow-sm">
-                    <x-icon name="wheat" class="size-5" stroke="2" />
-                </span>
+                <img src="{{ asset('images/logo-mark.png') }}" alt="" class="size-10 shrink-0 object-contain mix-blend-multiply">
                 <span class="min-w-0 leading-tight lg:collapsed:hidden">
                     <span class="block truncate text-[15px] font-semibold text-stone-900">{{ config('agri.name') }}</span>
                     <span class="block text-xs text-stone-500">{{ __(config('agri.tagline')) }}</span>

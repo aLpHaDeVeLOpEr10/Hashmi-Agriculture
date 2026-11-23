@@ -25,10 +25,17 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>{{ $title }}</h1>
-        <div class="muted">{{ config('agri.name') }}@if ($subtitle) · {{ $subtitle }}@endif · {{ __('Generated :date', ['date' => now()->format('d M Y H:i')]) }}</div>
-    </div>
+    <table class="header" style="border-collapse: collapse;">
+        <tr>
+            <td style="width: 48px; padding: 0 10px 0 0; border: 0; vertical-align: middle;">
+                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('images/logo-mark.png'))) }}" alt="" style="width: 44px; height: 44px;">
+            </td>
+            <td style="padding: 0; border: 0; vertical-align: middle;">
+                <h1>{{ $title }}</h1>
+                <div class="muted">{{ config('agri.name') }}@if ($subtitle) · {{ $subtitle }}@endif · {{ __('Generated :date', ['date' => now()->format('d M Y H:i')]) }}</div>
+            </td>
+        </tr>
+    </table>
     {{ $slot }}
     <div class="footer">{{ __('Amounts in :currency', ['currency' => config('agri.currency')]) }}</div>
 </body>

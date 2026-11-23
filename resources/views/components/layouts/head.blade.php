@@ -6,7 +6,8 @@
 <meta name="theme-color" content="#2f855a">
 <title>{{ $title }} · {{ config('agri.name') }}</title>
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 @auth
     <meta name="offline-sync" content="{{ route('offline.sync') }}" data-token="{{ route('offline.token') }}" data-user="{{ auth()->id() }}"
