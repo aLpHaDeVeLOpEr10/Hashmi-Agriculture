@@ -2,6 +2,7 @@
 @use('App\Models\HarvestRecord')
 @use('App\Models\SilageBatch')
 @use('App\Models\StorageUnit')
+@use('App\Support\CostReport')
 
 @php
     $open = $season && ! $season->isClosed();
@@ -9,8 +10,16 @@
     $canManage = auth()->user()->can('manage-production');
     $summary = $season?->summary;
     $harvestBlank = ['harvest_date' => now()->toDateString(), 'field_id' => '', 'method' => 'weighbridge', 'quantity_kg' => '', 'trolley_count' => '', 'avg_trolley_kg' => '', 'moisture_pct' => ''];
-    $batchBlank = ['storage_unit_id' => '', 'fill_start' => now()->toDateString(), 'sealed_date' => '', 'fresh_weight_kg' => '', 'method' => 'weighbridge', 'expected_loss_pct' => 10];
-    $unitBlank = ['name' => '', 'type' => 'pit', 'capacity_tonnes' => '', 'is_active' => true];
+    $density = $season ? (float) $season->packing_density_kg_m3 : 650;
+    $batchBlank = ['storage_unit_id' => '', 'fill_start' => now()->toDateString(), 'sealed_date' => '', 'fresh_weight_kg' => '', 'method' => 'pit_volume', 'expected_loss_pct' => 10, 'length_ft' => '', 'width_ft' => '', 'height_ft' => '', 'density_kg_m3' => $density];
+    if ($season) {
+        $acres = (float) $season->total_area_acres;
+        $benchmarkKg = $season->benchmark_yield_maund ? (float) $season->benchmark_yield_maund * CostReport::MAUND_KG * $acres : null;
+        $productionKg = (float) ($summary->silage_fresh_kg ?? 0) > 0 ? (float) $summary->silage_fresh_kg : (float) ($summary->harvested_kg ?? 0);
+        $dmKg = $productionKg * (float) $season->dry_matter_pct / 100;
+        $settings = ['benchmark_yield_maund' => $season->benchmark_yield_maund !== null ? (float) $season->benchmark_yield_maund : '', 'packing_density_kg_m3' => (float) $season->packing_density_kg_m3, 'dry_matter_pct' => (float) $season->dry_matter_pct];
+    }
+    $unitBlank = ['name' => '', 'type' => 'bunker', 'capacity_tonnes' => '', 'is_active' => true];
 @endphp
 
 <x-layouts.app :title="__('Production')" :breadcrumbs="[__('Production')]">
@@ -57,14 +66,14 @@
             @endif
         @endif
 
-        <x-card :title="__('Pit status')" :description="__('Silage pits, bunkers and bale stacks')" class="mt-6" flush>
+        <x-card :title="__('Bunker status')" :description="__('Silage bunkers and other storage')" class="mt-6" flush>
             @if ($canManage)
                 <x-slot:actions>
                     <x-button variant="secondary" size="sm" icon="plus" x-on:click="unit = {{ Js::from($unitBlank) }}; $dispatch('open-modal', 'unit')">{{ __('Storage unit') }}</x-button>
                 </x-slot:actions>
             @endif
             @if ($units->isEmpty())
-                <x-empty-state icon="warehouse" :title="__('No storage units yet')" :description="__('Add your silage pits and bunkers before recording batches.')" />
+                <x-empty-state icon="warehouse" :title="__('No storage units yet')" :description="__('Add your silage bunkers before recording batches.')" />
             @else
                 <div class="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
                     @foreach ($units as $unit)
@@ -148,9 +157,37 @@
                 @endif
             </x-card>
 
-            <x-card :title="__('Silage batches')" :description="__('Each pit or bunker filled is one batch. Cost per kg uses usable silage, after the expected storage loss.')" class="mt-6" flush>
+            <x-card :title="__('Bunker estimator')" :description="__('Settings used to turn bunker measurements into silage weight, and to compare against the benchmark.')" class="mt-6">
+                @if ($canManage && $open)
+                    <x-slot:actions>
+                        <x-button variant="secondary" size="sm" icon="pencil" x-on:click="$dispatch('open-modal', 'silage-settings')">{{ __('Edit') }}</x-button>
+                    </x-slot:actions>
+                @endif
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3 xl:grid-cols-6">
+                    @foreach ([
+                        [__('Benchmark yield'), $season->benchmark_yield_maund ? Money::number($season->benchmark_yield_maund).' '.__('maund / acre') : '—', $season->benchmark_yield_maund ? Money::number($season->benchmark_yield_maund * CostReport::MAUND_KG).' kg / '.__('acre') : __('Not set')],
+                        [__('Benchmark total'), $benchmarkKg ? Money::number($benchmarkKg / 1000, 1).' t' : '—', $benchmarkKg ? Money::number($benchmarkKg / CostReport::MAUND_KG).' '.__('maund').' · '.Money::number($acres, 2).' '.__('acres') : ''],
+                        [__('Packing density'), Money::number($season->packing_density_kg_m3).' kg/m³', __('fresh silage in the bunker')],
+                        [__('Dry matter'), Money::quantity($season->dry_matter_pct).'%', __('of fresh weight')],
+                        [__('Dry-matter production'), $dmKg > 0 ? Money::number($dmKg / 1000, 1).' t' : '—', (float) ($summary->silage_fresh_kg ?? 0) > 0 ? __('on silage packed') : __('on harvest (provisional)')],
+                        [__('Cost per kg DM'), $dmKg > 0 ? Money::format($summary->total_cost / $dmKg, 2) : '—', __('season total ÷ DM kg')],
+                    ] as [$label, $value, $hint])
+                        <div>
+                            <dt class="text-xs text-stone-500">{{ $label }}</dt>
+                            <dd class="mt-1 font-semibold text-stone-900 tabular-nums">{{ $value }}</dd>
+                            <dd class="text-xs text-stone-500">{{ $hint }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+                <p class="mt-4 flex items-start gap-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600">
+                    <x-icon name="info" class="mt-0.5 size-4 shrink-0 text-stone-400" />
+                    {{ __('Bunker silage (kg) = length × width × average settled height (ft) × 0.0283168 m³/ft³ × packing density. Record one silage batch per bunker with "Bunker measurement".') }}
+                </p>
+            </x-card>
+
+            <x-card :title="__('Silage batches')" :description="__('Each bunker filled is one batch. Cost per kg uses usable silage, after the expected storage loss.')" class="mt-6" flush>
                 @if ($season->batches->isEmpty())
-                    <x-empty-state icon="warehouse" :title="__('No silage batches')" :description="__('Create a batch when you start filling a pit or bunker.')" />
+                    <x-empty-state icon="warehouse" :title="__('No silage batches')" :description="__('Create a batch when you start filling a bunker.')" />
                 @else
                     <x-table min-width="min-w-[1040px]">
                         <x-slot:head>
@@ -181,6 +218,9 @@
                                 <td class="text-end whitespace-nowrap tabular-nums">
                                     {{ Money::number($batch->fresh_weight_kg) }} kg
                                     <span class="block text-xs text-stone-500">{{ HarvestRecord::methodLabel($batch->method) }}</span>
+                                    @if ($batch->isMeasured())
+                                        <span class="block text-xs text-stone-500">{{ Money::quantity($batch->length_ft) }} × {{ Money::quantity($batch->width_ft) }} × {{ Money::quantity($batch->height_ft) }} ft · {{ Money::number($batch->density_kg_m3) }} kg/m³</span>
+                                    @endif
                                 </td>
                                 <td class="text-end tabular-nums">{{ Money::quantity($batch->expected_loss_pct) }}%</td>
                                 <td class="text-end font-semibold whitespace-nowrap text-stone-900 tabular-nums">{{ Money::number($batch->usableKg()) }} kg</td>
@@ -201,7 +241,7 @@
                                     @endif
                                     @if ($open && $canManage)
                                         <x-button variant="ghost" size="icon" :aria-label="__('Edit')"
-                                            x-on:click="batch = {{ Js::from(['id' => $batch->id, 'storage_unit_id' => $batch->storage_unit_id, 'fill_start' => $batch->fill_start->toDateString(), 'sealed_date' => $batch->sealed_date?->toDateString() ?? '', 'fresh_weight_kg' => (float) $batch->fresh_weight_kg, 'method' => $batch->method, 'expected_loss_pct' => (float) $batch->expected_loss_pct]) }}; $dispatch('open-modal', 'batch')">
+                                            x-on:click="batch = {{ Js::from(['id' => $batch->id, 'storage_unit_id' => $batch->storage_unit_id, 'fill_start' => $batch->fill_start->toDateString(), 'sealed_date' => $batch->sealed_date?->toDateString() ?? '', 'fresh_weight_kg' => (float) $batch->fresh_weight_kg, 'method' => $batch->method, 'expected_loss_pct' => (float) $batch->expected_loss_pct, 'length_ft' => $batch->length_ft !== null ? (float) $batch->length_ft : '', 'width_ft' => $batch->width_ft !== null ? (float) $batch->width_ft : '', 'height_ft' => $batch->height_ft !== null ? (float) $batch->height_ft : '', 'density_kg_m3' => $batch->density_kg_m3 !== null ? (float) $batch->density_kg_m3 : $density]) }}; $dispatch('open-modal', 'batch')">
                                             <x-icon name="pencil" class="size-4" />
                                         </x-button>
                                         <form method="POST" action="{{ route('batches.destroy', [$season, $batch]) }}" class="inline" x-data x-on:submit="if (!confirm(@js(__('Delete this silage batch?')))) $event.preventDefault()">
@@ -255,18 +295,36 @@
                     </x-slot:hidden>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div class="sm:col-span-2">
-                            <x-form.select :label="__('Pit / bunker')" name="storage_unit_id" required :options="$units->where('is_active', true)->pluck('name', 'id')->all()" x-model="batch.storage_unit_id" />
+                            <x-form.select :label="__('Bunker')" name="storage_unit_id" required :options="$units->where('is_active', true)->pluck('name', 'id')->all()" x-model="batch.storage_unit_id" />
                         </div>
                         <x-form.input :label="__('Filling started')" name="fill_start" type="date" required :max="now()->toDateString()" x-model="batch.fill_start" />
                         <x-form.input :label="__('Sealed on')" name="sealed_date" type="date" :max="now()->toDateString()" x-model="batch.sealed_date" :hint="__('Leave empty while still filling.')" />
-                        <x-form.input :label="__('Fresh weight packed')" name="fresh_weight_kg" type="number" min="1" step="0.001" required x-model="batch.fresh_weight_kg" suffix="kg" />
-                        <x-form.select :label="__('Measured by')" name="method" required :placeholder="false" x-model="batch.method">
-                            @foreach (SilageBatch::METHODS as $method)
-                                <option value="{{ $method }}">{{ HarvestRecord::methodLabel($method) }}</option>
-                            @endforeach
-                        </x-form.select>
+                        <div class="sm:col-span-2">
+                            <x-form.select :label="__('Measured by')" name="method" required :placeholder="false" x-model="batch.method">
+                                @foreach (SilageBatch::METHODS as $method)
+                                    <option value="{{ $method }}">{{ HarvestRecord::methodLabel($method) }}</option>
+                                @endforeach
+                            </x-form.select>
+                        </div>
+                        <template x-if="batch.method === 'pit_volume'">
+                            <div class="grid grid-cols-2 gap-4 rounded-lg border border-stone-200 bg-stone-50 p-3 sm:col-span-2 sm:grid-cols-4">
+                                <x-form.input :label="__('Length')" name="length_ft" type="number" min="0.1" step="0.01" required x-model="batch.length_ft" suffix="ft" />
+                                <x-form.input :label="__('Width')" name="width_ft" type="number" min="0.1" step="0.01" required x-model="batch.width_ft" suffix="ft" />
+                                <x-form.input :label="__('Settled height')" name="height_ft" type="number" min="0.1" step="0.01" required x-model="batch.height_ft" suffix="ft" />
+                                <x-form.input :label="__('Density')" name="density_kg_m3" type="number" min="100" max="1500" step="1" x-model="batch.density_kg_m3" suffix="kg/m³" />
+                                <p class="col-span-2 text-sm text-stone-600 sm:col-span-4">
+                                    {{ __('Volume') }}: <span class="font-semibold tabular-nums" x-text="((parseFloat(batch.length_ft) || 0) * (parseFloat(batch.width_ft) || 0) * (parseFloat(batch.height_ft) || 0) * {{ SilageBatch::FT3_TO_M3 }}).toLocaleString(undefined, { maximumFractionDigits: 1 })"></span> m³
+                                    · {{ __('Estimated silage') }}: <span class="font-semibold tabular-nums" x-text="Math.round((parseFloat(batch.length_ft) || 0) * (parseFloat(batch.width_ft) || 0) * (parseFloat(batch.height_ft) || 0) * {{ SilageBatch::FT3_TO_M3 }} * (parseFloat(batch.density_kg_m3) || 0)).toLocaleString()"></span> kg
+                                </p>
+                            </div>
+                        </template>
+                        <template x-if="batch.method !== 'pit_volume'">
+                            <div class="sm:col-span-2">
+                                <x-form.input :label="__('Fresh weight packed')" name="fresh_weight_kg" type="number" min="1" step="0.001" required x-model="batch.fresh_weight_kg" suffix="kg" />
+                            </div>
+                        </template>
                         <x-form.input :label="__('Expected storage loss')" name="expected_loss_pct" type="number" min="0" max="60" step="0.1" required x-model="batch.expected_loss_pct" suffix="%" :hint="__('Shrink and spoilage. 10% is typical.')" />
-                        <p class="self-end pb-2 text-sm text-stone-600">{{ __('Usable') }}: <span class="font-semibold tabular-nums" x-text="Math.round((parseFloat(batch.fresh_weight_kg) || 0) * (100 - (parseFloat(batch.expected_loss_pct) || 0)) / 100).toLocaleString()"></span> kg</p>
+                        <p class="self-end pb-2 text-sm text-stone-600">{{ __('Usable') }}: <span class="font-semibold tabular-nums" x-text="Math.round((batch.method === 'pit_volume' ? (parseFloat(batch.length_ft) || 0) * (parseFloat(batch.width_ft) || 0) * (parseFloat(batch.height_ft) || 0) * {{ SilageBatch::FT3_TO_M3 }} * (parseFloat(batch.density_kg_m3) || 0) : (parseFloat(batch.fresh_weight_kg) || 0)) * (100 - (parseFloat(batch.expected_loss_pct) || 0)) / 100).toLocaleString()"></span> kg</p>
                     </div>
                 </x-modal>
             @endif
@@ -278,6 +336,17 @@
                     </x-slot:hidden>
                     <x-form.input :label="__('Date')" name="date" type="date" required :value="now()->toDateString()" :max="now()->toDateString()" />
                 </x-modal>
+
+                <x-modal name="silage-settings" :title="__('Bunker estimator settings')" size="sm" :action="route('seasons.silage-settings', $season)">
+                    <x-slot:hidden>
+                        <input type="hidden" name="_method" value="PUT">
+                    </x-slot:hidden>
+                    <div class="grid grid-cols-1 gap-4">
+                        <x-form.input :label="__('Benchmark yield')" name="benchmark_yield_maund" type="number" min="1" step="0.01" :value="$settings['benchmark_yield_maund']" suffix="maund/acre" :hint="__('1 maund = 40 kg. Leave empty if there is no benchmark.')" />
+                        <x-form.input :label="__('Packing density')" name="packing_density_kg_m3" type="number" min="100" max="1500" step="1" required :value="$settings['packing_density_kg_m3']" suffix="kg/m³" :hint="__('Used for new bunker measurements. 650 kg/m³ is typical for well-packed maize.')" />
+                        <x-form.input :label="__('Dry matter')" name="dry_matter_pct" type="number" min="1" max="100" step="0.1" required :value="$settings['dry_matter_pct']" suffix="%" />
+                    </div>
+                </x-modal>
             @endif
         @endif
 
@@ -288,7 +357,7 @@
                     <input type="hidden" name="_method" :value="unit.id ? 'PUT' : 'POST'">
                 </x-slot:hidden>
                 <div class="grid grid-cols-1 gap-4">
-                    <x-form.input :label="__('Name')" name="name" required maxlength="60" x-model="unit.name" :placeholder="__('e.g. Pit 2')" />
+                    <x-form.input :label="__('Name')" name="name" required maxlength="60" x-model="unit.name" :placeholder="__('e.g. Bunker 2')" />
                     <div class="grid grid-cols-2 gap-4">
                         <x-form.select :label="__('Type')" name="type" required :placeholder="false" x-model="unit.type">
                             @foreach (StorageUnit::TYPES as $type)

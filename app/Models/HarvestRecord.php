@@ -39,7 +39,7 @@ class HarvestRecord extends Model
         return __(match ($method) {
             'weighbridge' => 'Weighbridge slip',
             'trolley_count' => 'Trolley count',
-            'pit_volume' => 'Pit volume',
+            'pit_volume' => 'Bunker measurement',
             default => 'Estimate',
         });
     }

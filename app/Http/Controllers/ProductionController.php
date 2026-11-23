@@ -125,10 +125,26 @@ class ProductionController extends Controller
             'storage_unit_id' => ['required', Rule::exists('storage_units', 'id')->where('farm_id', $request->user()->farm_id)],
             'fill_start' => ['required', 'date', 'before_or_equal:today'],
             'sealed_date' => ['nullable', 'date', 'after_or_equal:fill_start', 'before_or_equal:today'],
-            'fresh_weight_kg' => ['required', 'numeric', 'min:1', 'max:999999999'],
             'method' => ['required', Rule::in(SilageBatch::METHODS)],
+            'fresh_weight_kg' => ['exclude_if:method,pit_volume', 'required', 'numeric', 'min:1', 'max:999999999'],
+            'length_ft' => ['exclude_unless:method,pit_volume', 'required', 'numeric', 'min:0.1', 'max:10000'],
+            'width_ft' => ['exclude_unless:method,pit_volume', 'required', 'numeric', 'min:0.1', 'max:10000'],
+            'height_ft' => ['exclude_unless:method,pit_volume', 'required', 'numeric', 'min:0.1', 'max:100'],
+            'density_kg_m3' => ['exclude_unless:method,pit_volume', 'nullable', 'numeric', 'min:100', 'max:1500'],
             'expected_loss_pct' => ['required', 'numeric', 'min:0', 'max:60'],
         ]);
+    }
+
+    public function updateSilageSettings(Request $request, CropSeason $season): RedirectResponse
+    {
+        $this->authorize('manage-production');
+        $this->production->saveSilageSettings($season, $request->validate([
+            'benchmark_yield_maund' => ['nullable', 'numeric', 'min:1', 'max:5000'],
+            'packing_density_kg_m3' => ['required', 'numeric', 'min:100', 'max:1500'],
+            'dry_matter_pct' => ['required', 'numeric', 'min:1', 'max:100'],
+        ]));
+
+        return $this->back($season, __('Bunker estimator settings saved.'));
     }
 
     private function unitData(Request $request): array

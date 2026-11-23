@@ -14,6 +14,9 @@ class Expense extends Model
 {
     use Audited, BelongsToFarm, SoftDeletes;
 
+    /** How well a line is documented; "incomplete" lines (e.g. lump sums with no breakdown) are a documentation gap. */
+    public const COMPLETENESS = ['complete', 'partial', 'incomplete'];
+
     protected $guarded = ['id', 'farm_id', 'created_by'];
 
     protected function casts(): array
@@ -24,6 +27,7 @@ class Expense extends Model
             'unit_price' => 'decimal:2',
             'amount' => 'decimal:2',
             'is_notional' => 'boolean',
+            'is_rework' => 'boolean',
         ];
     }
 

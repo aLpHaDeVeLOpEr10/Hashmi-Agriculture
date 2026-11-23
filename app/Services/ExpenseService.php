@@ -44,6 +44,8 @@ class ExpenseService
                 'resource_id' => $data['resource_id'] ?? null,
                 'field_id' => $data['field_id'] ?? null,
                 'is_notional' => $data['is_notional'] ?? false,
+                'completeness' => $data['completeness'] ?? $expense->completeness ?? 'complete',
+                'is_rework' => (bool) ($data['is_rework'] ?? $expense->is_rework ?? false),
             ]);
             $expense->save();
 

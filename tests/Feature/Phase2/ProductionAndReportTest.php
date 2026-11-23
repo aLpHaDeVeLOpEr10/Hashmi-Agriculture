@@ -41,10 +41,10 @@ class ProductionAndReportTest extends TestCase
         $owner = $this->user();
         $season = $this->costedSeason();
         $this->actingAs($owner);
-        $pit = StorageUnit::create(['name' => 'Pit 1', 'type' => 'pit', 'capacity_tonnes' => 200]);
+        $bunker = StorageUnit::create(['name' => 'Bunker 1', 'type' => 'bunker', 'capacity_tonnes' => 200]);
 
         $this->actingAs($owner)->post(route('batches.store', $season), [
-            'storage_unit_id' => $pit->id, 'fill_start' => '2026-10-15', 'fresh_weight_kg' => 190000, 'method' => 'weighbridge', 'expected_loss_pct' => 10,
+            'storage_unit_id' => $bunker->id, 'fill_start' => '2026-10-15', 'fresh_weight_kg' => 190000, 'method' => 'weighbridge', 'expected_loss_pct' => 10,
         ])->assertRedirect();
 
         $summary = $season->summary()->first();
@@ -64,8 +64,8 @@ class ProductionAndReportTest extends TestCase
         $manager = $this->user('manager');
         $season = $this->costedSeason();
         $this->actingAs($owner);
-        $pit = StorageUnit::create(['name' => 'Pit 1', 'type' => 'pit', 'capacity_tonnes' => 200]);
-        $this->post(route('batches.store', $season), ['storage_unit_id' => $pit->id, 'fill_start' => '2026-10-15', 'fresh_weight_kg' => 100000, 'method' => 'weighbridge', 'expected_loss_pct' => 10]);
+        $bunker = StorageUnit::create(['name' => 'Bunker 1', 'type' => 'bunker', 'capacity_tonnes' => 200]);
+        $this->post(route('batches.store', $season), ['storage_unit_id' => $bunker->id, 'fill_start' => '2026-10-15', 'fresh_weight_kg' => 100000, 'method' => 'weighbridge', 'expected_loss_pct' => 10]);
         $this->actingAs($manager)->post(route('seasons.close', $season));
 
         $this->actingAs($manager)->post(route('harvests.store', $season), ['harvest_date' => '2026-10-20', 'method' => 'weighbridge', 'quantity_kg' => 1000])->assertSessionHasErrors('season');
@@ -81,7 +81,7 @@ class ProductionAndReportTest extends TestCase
         $owner = $this->user();
         $season = $this->costedSeason();
         $this->actingAs($owner);
-        $batch = SilageBatch::create(['season_id' => $season->id, 'storage_unit_id' => StorageUnit::create(['name' => 'P', 'type' => 'pit', 'capacity_tonnes' => 50])->id, 'fill_start' => '2026-10-01', 'fresh_weight_kg' => 1000, 'method' => 'weighbridge', 'status' => 'filling']);
+        $batch = SilageBatch::create(['season_id' => $season->id, 'storage_unit_id' => StorageUnit::create(['name' => 'B', 'type' => 'bunker', 'capacity_tonnes' => 50])->id, 'fill_start' => '2026-10-01', 'fresh_weight_kg' => 1000, 'method' => 'weighbridge', 'status' => 'filling']);
 
         $this->post(route('batches.advance', [$season, $batch]), ['status' => 'feeding', 'date' => '2026-10-10'])->assertSessionHasErrors('status');
         $this->post(route('batches.advance', [$season, $batch]), ['status' => 'sealed', 'date' => '2026-10-03'])->assertRedirect();
@@ -129,6 +129,81 @@ class ProductionAndReportTest extends TestCase
         ] as $url) {
             $this->get($url)->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         }
+    }
+
+    public function test_season_report_can_be_filtered_to_one_stage(): void
+    {
+        $owner = $this->user();
+        $season = $this->costedSeason([], 100000);
+        $this->actingAs($owner);
+        app(ExpenseService::class)->save([
+            'season_stage_id' => $this->stage($season, 'HARVEST')->id, 'category_id' => $this->category('Miscellaneous'),
+            'expense_date' => $season->start_date->toDateString(), 'description' => 'Plastic sheet roll', 'amount' => 32000,
+        ]);
+
+        $this->get(route('reports.season', $season))->assertOk()
+            ->assertViewHas('kpis', fn ($k) => $k->total === 132000.0)
+            ->assertSee('All costs')->assertSee('Plastic sheet roll');
+
+        $this->get(route('reports.season', [$season, 'stage' => 'HARVEST']))->assertOk()
+            ->assertViewHas('kpis', fn ($k) => $k->total === 32000.0 && $k->outstanding === 32000.0)
+            ->assertViewHas('categories', fn ($c) => $c->sum('total') === 32000.0)
+            ->assertSee('Stage total')->assertSee('Plastic sheet roll')->assertDontSee('All costs');
+
+        $this->get(route('reports.season', [$season, 'stage' => 'HARVEST', 'format' => 'pdf']))->assertOk();
+        $this->get(route('reports.season', [$season, 'stage' => 'HARVEST', 'format' => 'xlsx']))->assertOk();
+        $this->get(route('reports.season', [$season, 'stage' => 'NOPE']))->assertSessionHasErrors('stage');
+    }
+
+    public function test_season_report_shows_unit_costs_and_data_quality(): void
+    {
+        $owner = $this->user();
+        $season = $this->costedSeason([], 100000);
+        $this->actingAs($owner);
+        $service = app(ExpenseService::class);
+        $growing = $this->stage($season, 'GROWING')->id;
+        $service->save(['season_stage_id' => $growing, 'category_id' => $this->category('Miscellaneous'), 'expense_date' => $season->start_date->toDateString(), 'description' => 'Pesticide lump sum', 'amount' => 20000, 'completeness' => 'incomplete']);
+        $service->save(['season_stage_id' => $growing, 'category_id' => $this->category('Miscellaneous'), 'expense_date' => $season->start_date->toDateString(), 'description' => 'Re-planting labour', 'amount' => 30000, 'is_rework' => true]);
+        $season->harvests()->create(['harvest_date' => $season->start_date->toDateString(), 'method' => 'estimate', 'quantity_kg' => 20000]);
+
+        $this->get(route('reports.season', $season))->assertOk()
+            ->assertViewHas('kpis', fn ($k) => $k->lines === 3
+                && $k->incomplete_lines === 1 && $k->incomplete_amount === 20000.0 && round($k->incomplete_share, 2) === 13.33
+                && $k->rework_amount === 30000.0 && $k->provisional
+                && round($k->cost_per_kg, 2) === 7.5 && round($k->cost_per_maund, 2) === 300.0)
+            ->assertSee('Identified re-work')->assertSee('Cost / kg DM');
+
+        $this->get(route('reports.season', [$season, 'stage' => 'GROWING']))->assertOk()
+            ->assertViewHas('kpis', fn ($k) => $k->lines === 2 && $k->total === 50000.0 && round($k->incomplete_share, 1) === 40.0);
+    }
+
+    public function test_bunker_measurement_estimates_silage_weight_like_the_workbook(): void
+    {
+        $owner = $this->user();
+        $season = $this->costedSeason();
+        $this->actingAs($owner);
+        $bunker = StorageUnit::create(['name' => 'Bunker 1', 'type' => 'bunker', 'capacity_tonnes' => 400]);
+
+        $this->put(route('seasons.silage-settings', $season), ['benchmark_yield_maund' => 500, 'packing_density_kg_m3' => 650, 'dry_matter_pct' => 30])->assertRedirect();
+        $this->assertEquals(500, $season->fresh()->benchmark_yield_maund);
+
+        // 100 ft × 30 ft × 8 ft = 24,000 ft³ = 679.6032 m³ × 650 kg/m³ = 441,742.08 kg
+        $this->post(route('batches.store', $season), [
+            'storage_unit_id' => $bunker->id, 'fill_start' => '2026-10-15', 'method' => 'pit_volume',
+            'length_ft' => 100, 'width_ft' => 30, 'height_ft' => 8, 'expected_loss_pct' => 10, 'fresh_weight_kg' => 1,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $batch = SilageBatch::sole();
+        $this->assertEquals(441742.08, (float) $batch->fresh_weight_kg);
+        $this->assertEquals(650, $batch->density_kg_m3);
+        $this->assertTrue($batch->isMeasured());
+
+        $this->post(route('batches.store', $season), ['storage_unit_id' => $bunker->id, 'fill_start' => '2026-10-15', 'method' => 'pit_volume', 'expected_loss_pct' => 10])
+            ->assertSessionHasErrors(['length_ft', 'width_ft', 'height_ft']);
+
+        $this->get(route('reports.season', $season))->assertOk()
+            ->assertViewHas('kpis', fn ($k) => $k->benchmark_yield_maund === 500.0 && round($k->cost_per_kg_dm, 4) === round(220000 / (441742.08 * 0.3), 4));
+        $this->get(route('production.index', ['season' => $season->code]))->assertOk()->assertSee('Bunker estimator')->assertSee('100 × 30 × 8 ft');
     }
 
     public function test_ageing_buckets_by_days_outstanding(): void

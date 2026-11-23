@@ -11,7 +11,8 @@ class StorageUnit extends Model
 {
     use Audited, BelongsToFarm;
 
-    public const TYPES = ['pit', 'bunker', 'bag', 'bale_stack'];
+    /** Types offered when adding storage. HAL uses bunkers; 'pit' stays valid in the database for old records only. */
+    public const TYPES = ['bunker', 'bag', 'bale_stack'];
 
     protected $guarded = ['id', 'farm_id', 'created_by'];
 

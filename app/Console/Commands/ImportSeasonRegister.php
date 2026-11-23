@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Crop;
 use App\Models\CropSeason;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Field;
 use App\Models\SeasonStage;
@@ -142,6 +143,8 @@ class ImportSeasonRegister extends Command
                 'unit_code' => $unit,
                 'unit_price' => $row['rate'],
                 'amount' => round($row['amount'], 2),
+                'completeness' => in_array(strtolower($row['completeness']), Expense::COMPLETENESS, true) ? strtolower($row['completeness']) : 'complete',
+                'is_rework' => $row['rework'],
             ]);
         }
 
@@ -152,8 +155,8 @@ class ImportSeasonRegister extends Command
             }
             $stage->update([
                 'start_date' => $lines->min('date'),
-                'end_date' => $code === 'SILAGE' ? null : $lines->max('date'),
-                'status' => $code === 'SILAGE' ? 'in_progress' : 'completed',
+                'end_date' => $lines->max('date'),
+                'status' => 'completed',
                 'notes' => 'Workbook activities: '.$lines->pluck('detail')->unique()->implode(', ').'.',
             ]);
         }
@@ -172,13 +175,9 @@ class ImportSeasonRegister extends Command
         return $season;
     }
 
-    /** ST04 holds both the harvesting contract and the silage materials; the software keeps those in separate stages. */
+    /** ST04 (harvesting contract and silage materials) maps to the single "Crop Harvesting & Production" stage. */
     private function stageFor(array $row): string
     {
-        if ($row['stage'] === 'ST04') {
-            return $row['account'] === '8108' ? 'SILAGE' : 'HARVEST';
-        }
-
         return self::STAGES[$row['stage']] ?? throw new \RuntimeException("{$row['txn']}: unknown stage {$row['stage']}");
     }
 
@@ -362,7 +361,7 @@ class ImportSeasonRegister extends Command
         $sheet = $this->labelled($book['Stage_Analysis'], 0, 2, 3, 7);
         $rows = [];
         foreach (['ST01', 'ST02', 'ST03', 'ST04'] as $st) {
-            $codes = $st === 'ST04' ? ['HARVEST', 'SILAGE'] : [self::STAGES[$st]];
+            $codes = [self::STAGES[$st]];
             $soft = $db->whereIn('stage', $codes)->sum(fn ($e) => (float) $e['amount']);
             $rows[] = $this->row("{$st} → ".implode(' + ', $codes), $sheet[$st] ?? null, $soft, $db->whereIn('stage', $codes)->count(), $register->where('stage', $st)->count(), $ok);
         }

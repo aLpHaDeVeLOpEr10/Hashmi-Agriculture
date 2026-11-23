@@ -266,6 +266,11 @@
     "Harvester": "ہارویسٹر",
     "Harvester / chopper rent": "ہارویسٹر / چاپر کا کرایہ",
     "Harvesting": "کٹائی",
+    "Harvesting & Silage": "کٹائی اور سائیلج",
+    "Crop Land Preparation": "فصل کے لیے زمین کی تیاری",
+    "Crop Planting": "فصل کی بوائی",
+    "Crop Care & Maintenance": "فصل کی دیکھ بھال",
+    "Crop Harvesting & Production": "فصل کی کٹائی اور پیداوار",
     "Herbicide": "جڑی بوٹی مار دوا",
     "Home": "ہوم",
     "Hour": "گھنٹہ",
@@ -724,5 +729,13 @@
     "— None (this is a new group) —": "— کوئی نہیں (یہ نیا گروپ ہے) —",
     "“:bill” belongs to a different vendor.": "“:bill” کسی دوسرے سپلائر کا ہے۔",
     "“:bill” only has :balance left to pay.": "“:bill” پر صرف :balance ادا کرنا باقی ہے۔",
-    "“:cost” split into :count stage expenses.": "“:cost” کو :count مرحلہ وار اخراجات میں تقسیم کر دیا گیا۔"
+    "“:cost” split into :count stage expenses.": "“:cost” کو :count مرحلہ وار اخراجات میں تقسیم کر دیا گیا۔",
+    "Bunker status": "بنکر کی حالت",
+    "Silage bunkers and other storage": "سائیلج کے بنکر اور دیگر ذخیرہ",
+    "Add your silage bunkers before recording batches.": "بیچ درج کرنے سے پہلے اپنے سائیلج کے بنکر شامل کریں۔",
+    "Each bunker filled is one batch. Cost per kg uses usable silage, after the expected storage loss.": "ہر بھرا گیا بنکر ایک بیچ ہے۔ فی kg لاگت متوقع ذخیرہ نقصان کے بعد قابلِ استعمال سائیلج پر نکالی جاتی ہے۔",
+    "Create a batch when you start filling a bunker.": "جب بنکر بھرنا شروع کریں تو بیچ بنائیں۔",
+    "e.g. Bunker 2": "مثلاً بنکر 2",
+    "measured from bunkers": "بنکروں سے ناپا گیا",
+    "Bunker measurement": "بنکر کی پیمائش"
 }

@@ -11,19 +11,17 @@ use App\Models\MachineUsage;
 use App\Models\RecurringRule;
 use App\Models\SeasonStage;
 use App\Models\SharedCost;
-use App\Models\StorageUnit;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\ExpenseService;
 use App\Services\PaymentService;
-use App\Services\ProductionService;
 use App\Services\SeasonService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Auth;
 
 class DemoFarmSeeder extends Seeder
 {
-    public function run(SeasonService $seasons, ExpenseService $expenses, PaymentService $payments, ProductionService $production): void
+    public function run(SeasonService $seasons, ExpenseService $expenses, PaymentService $payments): void
     {
         $farm = Farm::create(['name' => 'Hashmi Agriculture Farm', 'location' => 'Renala Khurd, District Okara']);
 
@@ -94,9 +92,7 @@ class DemoFarmSeeder extends Seeder
             ],
             'HARVEST' => [
                 ['expense_date' => '2026-06-14', 'category_id' => $cat('Harvester / chopper rent'), 'description' => 'Forage chopper hire, 10 acres', 'quantity' => 10, 'unit_code' => 'acre', 'unit_price' => 3000, 'vendor_id' => $vendor['Rana Tractor Services']->id],
-                ['expense_date' => '2026-06-14', 'category_id' => $cat('Trolley hire'), 'description' => 'Trolleys to silage pit', 'quantity' => 24, 'unit_code' => 'trip', 'unit_price' => 500],
-            ],
-            'SILAGE' => [
+                ['expense_date' => '2026-06-14', 'category_id' => $cat('Trolley hire'), 'description' => 'Trolleys to silage bunker', 'quantity' => 24, 'unit_code' => 'trip', 'unit_price' => 500],
                 ['expense_date' => '2026-06-15', 'category_id' => $cat('Plastic sheet'), 'description' => 'Plastic sheet and inoculant', 'amount' => 25000, 'vendor_id' => $vendor['Okara Agri Traders']->id],
                 ['expense_date' => '2026-06-16', 'category_id' => $cat('Compaction labour'), 'description' => 'Compaction and sealing labour', 'quantity' => 20, 'unit_code' => 'day', 'unit_price' => 1000, 'vendor_id' => $vendor['Ghulam Rasool (labour contractor)']->id],
             ],
@@ -140,22 +136,13 @@ class DemoFarmSeeder extends Seeder
             ['expense_date' => '2026-10-18', 'category_id' => $cat('Farmyard manure'), 'description' => 'Farmyard manure, 6 trolleys', 'quantity' => 6, 'unit_code' => 'trolley', 'unit_price' => 3500],
         ]);
 
-        $pit = StorageUnit::create(['name' => 'Pit 1', 'type' => 'pit', 'capacity_tonnes' => 200]);
-        $bunker = StorageUnit::create(['name' => 'Bunker 2', 'type' => 'bunker', 'capacity_tonnes' => 400]);
-        StorageUnit::create(['name' => 'Pit 3', 'type' => 'pit', 'capacity_tonnes' => 150]);
-
-        $production->saveHarvest($spring, ['harvest_date' => '2026-06-14', 'field_id' => $fields['North Block A-1']->id, 'method' => 'weighbridge', 'quantity_kg' => 200000, 'moisture_pct' => 67]);
-        $springBatch = $production->saveBatch($spring, ['storage_unit_id' => $pit->id, 'fill_start' => '2026-06-14', 'sealed_date' => '2026-06-17', 'fresh_weight_kg' => 190000, 'method' => 'weighbridge', 'expected_loss_pct' => 10]);
-        $production->advanceBatch($springBatch, 'feeding', '2026-08-01');
+        // No demo bunkers, harvests or silage batches: the Production page shows only real, measured data.
 
         foreach ($spring->expenses()->get() as $expense) {
             $payments->payExpense($expense, $expense->amount, $expense->expense_date->addDays(7)->toDateString(), 'cash');
         }
         $seasons->close($spring);
         $spring->update(['closed_at' => '2026-07-05']);
-
-        $production->saveHarvest($autumn, ['harvest_date' => '2026-10-21', 'field_id' => $fields['North Block A-2']->id, 'method' => 'trolley_count', 'trolley_count' => 48, 'avg_trolley_kg' => 4500, 'moisture_pct' => 68]);
-        $production->saveBatch($autumn, ['storage_unit_id' => $bunker->id, 'fill_start' => '2026-10-21', 'fresh_weight_kg' => 205000, 'method' => 'trolley_count', 'expected_loss_pct' => 10]);
 
         $autumnBills = $autumn->expenses()->orderBy('expense_date')->get();
         $payments->record(

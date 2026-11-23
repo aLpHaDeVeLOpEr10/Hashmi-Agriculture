@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/batches/{batch}', [ProductionController::class, 'updateBatch'])->name('batches.update');
         Route::delete('/batches/{batch}', [ProductionController::class, 'destroyBatch'])->name('batches.destroy');
         Route::post('/batches/{batch}/advance', [ProductionController::class, 'advanceBatch'])->name('batches.advance');
+        Route::put('/silage-settings', [ProductionController::class, 'updateSilageSettings'])->name('seasons.silage-settings');
     });
 
     Route::prefix('machinery')->name('machinery.')->group(function () {

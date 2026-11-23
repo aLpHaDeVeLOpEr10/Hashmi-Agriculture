@@ -2,13 +2,21 @@
 
 @php $summary = $season->summary; @endphp
 
-<x-pdf-layout :title="__('Season summary').' · '.$season->name" :subtitle="$season->code.' · '.$season->crop->name.' · '.\App\Models\CropSeason::statusLabel($season->status)">
+<x-pdf-layout :title="__('Season summary').' · '.$season->name" :subtitle="$season->code.' · '.$season->crop->name.' · '.\App\Models\CropSeason::statusLabel($season->status).($stage ? ' · '.$stage->name() : '')">
     <table class="kpis">
         <tr>
-            <td><div class="label">{{ __('Season total') }}</div><div class="value">{{ Money::format($summary->total_cost) }}</div></td>
-            <td><div class="label">{{ __('Cost per acre') }}</div><div class="value">{{ Money::format($summary->cost_per_acre) }}</div><div class="muted">{{ Money::number($season->total_area_acres, 2) }} {{ __('acres') }}</div></td>
-            <td><div class="label">{{ __('Cost per tonne harvested') }}</div><div class="value">{{ $summary->cost_per_tonne_harvested ? Money::format($summary->cost_per_tonne_harvested) : '—' }}</div><div class="muted">{{ Money::number($summary->harvested_kg / 1000, 1) }} t</div></td>
-            <td><div class="label">{{ __('Silage cost per tonne') }}</div><div class="value">{{ $summary->silage_cost_per_tonne ? Money::format($summary->silage_cost_per_tonne) : '—' }}</div><div class="muted">{{ Money::number($summary->silage_usable_kg / 1000, 1) }} t {{ __('usable') }}</div></td>
+            <td><div class="label">{{ $kpis->total_label }}</div><div class="value">{{ Money::format($kpis->total) }}</div></td>
+            <td><div class="label">{{ __('Cost per acre') }}</div><div class="value">{{ $kpis->cost_per_acre !== null ? Money::format($kpis->cost_per_acre) : '—' }}</div><div class="muted">{{ Money::number($season->total_area_acres, 2) }} {{ __('acres') }}</div></td>
+            <td><div class="label">{{ __('Cost per tonne harvested') }}</div><div class="value">{{ $kpis->cost_per_tonne_harvested ? Money::format($kpis->cost_per_tonne_harvested) : '—' }}</div><div class="muted">{{ Money::number($summary->harvested_kg / 1000, 1) }} t</div></td>
+            <td><div class="label">{{ __('Silage cost per tonne') }}</div><div class="value">{{ $kpis->silage_cost_per_tonne ? Money::format($kpis->silage_cost_per_tonne) : '—' }}</div><div class="muted">{{ Money::number($summary->silage_usable_kg / 1000, 1) }} t {{ __('usable') }}</div></td>
+        </tr>
+    </table>
+    <table class="kpis">
+        <tr>
+            <td><div class="label">{{ __('Cost per kg') }}</div><div class="value">{{ $kpis->cost_per_kg !== null ? Money::number($kpis->cost_per_kg, 2) : '—' }}</div><div class="muted">{{ $kpis->provisional ? __('Provisional') : '' }}</div></td>
+            <td><div class="label">{{ __('Cost per maund') }}</div><div class="value">{{ $kpis->cost_per_maund !== null ? Money::number($kpis->cost_per_maund) : '—' }}</div><div class="muted">{{ __('1 maund = 40 kg') }}</div></td>
+            <td><div class="label">{{ __('Transactions') }}</div><div class="value">{{ $kpis->lines }}</div><div class="muted">{{ __(':count incomplete', ['count' => $kpis->incomplete_lines]) }} · {{ Money::number($kpis->incomplete_share, 1) }}% {{ __('of spend') }}</div></td>
+            <td><div class="label">{{ __('Identified re-work') }}</div><div class="value">{{ Money::format($kpis->rework_amount) }}</div><div class="muted">{{ __('Yield') }}: {{ $kpis->yield_maund_per_acre !== null ? Money::number($kpis->yield_maund_per_acre).' '.__('maund / acre') : '—' }}</div></td>
         </tr>
     </table>
 
@@ -27,7 +35,7 @@
         <tr class="total"><td>{{ __('Season total') }}</td><td class="num">{{ Money::number($summary->total_cost) }}</td><td class="num">100%</td><td class="num">{{ Money::number($summary->paid) }}</td><td class="num">{{ Money::number($summary->outstanding) }}</td></tr>
     </table>
 
-    <h2>{{ __('Cost by category') }}</h2>
+    <h2>{{ __('Cost by category') }}@if ($stage) · {{ $stage->name() }}@endif</h2>
     <table>
         <tr><th>{{ __('Category') }}</th><th class="num">{{ __('Total') }}</th><th class="num">{{ __('Share') }}</th></tr>
         @foreach ($categories as $category)

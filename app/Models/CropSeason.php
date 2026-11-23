@@ -25,6 +25,9 @@ class CropSeason extends Model
             'expected_end_date' => 'date',
             'closed_at' => 'date',
             'total_area_acres' => 'decimal:2',
+            'benchmark_yield_maund' => 'decimal:2',
+            'packing_density_kg_m3' => 'decimal:2',
+            'dry_matter_pct' => 'decimal:2',
         ];
     }
 

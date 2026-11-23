@@ -14,6 +14,9 @@ class SilageBatch extends Model
 
     public const STATUSES = ['filling', 'sealed', 'feeding', 'finished'];
 
+    /** Cubic feet to cubic metres, as used by the workbook's bunker estimator. */
+    public const FT3_TO_M3 = 0.0283168;
+
     protected $guarded = ['id', 'created_by'];
 
     protected function casts(): array
@@ -25,7 +28,28 @@ class SilageBatch extends Model
             'fresh_weight_kg' => 'decimal:3',
             'expected_loss_pct' => 'decimal:2',
             'cost_per_kg' => 'decimal:4',
+            'length_ft' => 'decimal:2',
+            'width_ft' => 'decimal:2',
+            'height_ft' => 'decimal:2',
+            'density_kg_m3' => 'decimal:2',
         ];
+    }
+
+    /** Bunker volume in m³ from length × width × average settled height (ft). */
+    public static function volumeM3(float $lengthFt, float $widthFt, float $heightFt): float
+    {
+        return $lengthFt * $widthFt * $heightFt * self::FT3_TO_M3;
+    }
+
+    /** Estimated fresh silage (kg) = bunker volume (m³) × packing density (kg/m³). */
+    public static function estimateKg(float $lengthFt, float $widthFt, float $heightFt, float $densityKgM3): float
+    {
+        return round(self::volumeM3($lengthFt, $widthFt, $heightFt) * $densityKgM3, 3);
+    }
+
+    public function isMeasured(): bool
+    {
+        return $this->method === 'pit_volume' && $this->length_ft !== null;
     }
 
     public function season(): BelongsTo

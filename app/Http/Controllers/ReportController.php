@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CropSeason;
 use App\Models\Expense;
+use App\Models\SeasonStage;
 use App\Support\CostReport;
 use App\Support\ReportExporter;
 use Illuminate\Http\Request;
@@ -25,12 +26,20 @@ class ReportController extends Controller
     public function season(Request $request, CropSeason $season): Response
     {
         $season->load(['crop', 'fields', 'summary', 'stages.template', 'stages.totals', 'harvests', 'batches.storageUnit']);
+        $code = $request->validate(['stage' => ['nullable', Rule::in($season->stages->map(fn ($s) => $s->template->code)->all())]])['stage'] ?? null;
+        $stage = $code ? $season->stages->first(fn ($s) => $s->template->code === $code) : null;
+
+        $expenses = Expense::query()->where('season_id', $season->id)
+            ->when($stage, fn ($q) => $q->where('season_stage_id', $stage->id))
+            ->with(['stage.template', 'category.parent', 'vendor', 'status'])->orderBy('expense_date')->get();
         $data = [
             'season' => $season,
-            'categories' => $this->report->categoryBreakdown($season),
-            'expenses' => Expense::query()->where('season_id', $season->id)->with(['stage.template', 'category.parent', 'vendor', 'status'])->orderBy('expense_date')->get(),
+            'stage' => $stage,
+            'kpis' => $this->seasonKpis($season, $stage, $expenses),
+            'categories' => $this->report->categoryBreakdown($season, $stage?->id),
+            'expenses' => $expenses,
         ];
-        $filename = 'season-summary-'.$season->code;
+        $filename = 'season-summary-'.$season->code.($stage ? '-'.strtolower($code) : '');
 
         return match ($this->format($request)) {
             'pdf' => $this->exporter->pdf('reports.pdf.season', $data, $filename),
@@ -103,36 +112,92 @@ class ReportController extends Controller
             : $query->latest('start_date')->limit($default)->get()->sortBy('start_date')->values();
     }
 
+    /**
+     * Headline figures for the season, or for one stage of it. Cost ratios use the same
+     * formulas as v_season_summary, applied to the stage's own total when a stage is chosen.
+     */
+    private function seasonKpis(CropSeason $season, ?SeasonStage $stage, Collection $expenses): object
+    {
+        $summary = $season->summary;
+        $total = (float) ($stage ? $stage->totals?->total : $summary->total_cost);
+        $acres = (float) $season->total_area_acres;
+        $harvested = (float) $summary->harvested_kg;
+        $usable = (float) $summary->silage_usable_kg;
+        $incomplete = $expenses->where('completeness', 'incomplete');
+        $rework = $expenses->where('is_rework', true);
+
+        return (object) [
+            'provisional' => $season->harvests->contains('method', 'estimate'),
+            'lines' => $expenses->count(),
+            'incomplete_lines' => $incomplete->count(),
+            'incomplete_amount' => (float) $incomplete->sum('amount'),
+            'incomplete_share' => $total > 0 ? $incomplete->sum('amount') / $total * 100 : 0.0,
+            'rework_lines' => $rework->count(),
+            'rework_amount' => (float) $rework->sum('amount'),
+            'cost_per_kg' => $harvested > 0 ? $total / $harvested : null,
+            'cost_per_maund' => $harvested > 0 ? $total * CostReport::MAUND_KG / $harvested : null,
+            'yield_maund_per_acre' => $summary->yield_kg_per_acre ? (float) $summary->yield_kg_per_acre / CostReport::MAUND_KG : null,
+            'benchmark_yield_maund' => $season->benchmark_yield_maund !== null ? (float) $season->benchmark_yield_maund : null,
+            'dry_matter_pct' => (float) $season->dry_matter_pct,
+            'dm_kg' => ($basis = $usable > 0 ? (float) $summary->silage_fresh_kg : $harvested) * (float) $season->dry_matter_pct / 100,
+            'cost_per_kg_dm' => $basis > 0 && (float) $season->dry_matter_pct > 0 ? $total / ($basis * (float) $season->dry_matter_pct / 100) : null,
+            'total_label' => $stage ? __('Stage total') : __('Season total'),
+            'total' => $total,
+            'paid' => (float) ($stage ? $stage->totals?->paid : $summary->paid),
+            'outstanding' => (float) ($stage ? $stage->totals?->balance : $summary->outstanding),
+            'cost_per_acre' => $acres > 0 ? $total / $acres : null,
+            'harvested_kg' => $harvested,
+            'yield_kg_per_acre' => $summary->yield_kg_per_acre,
+            'cost_per_tonne_harvested' => $harvested > 0 ? $total * 1000 / $harvested : null,
+            'silage_usable_kg' => $usable,
+            'silage_cost_per_kg' => $usable > 0 ? $total / $usable : null,
+            'silage_cost_per_tonne' => $usable > 0 ? $total * 1000 / $usable : null,
+        ];
+    }
+
     private function seasonSheets(array $data): array
     {
         $season = $data['season'];
-        $summary = $season->summary;
+        $kpis = $data['kpis'];
 
         return [
             __('Summary') => [
                 [__('Measure'), __('Value')],
                 [__('Season'), "{$season->name} ({$season->code})"],
+                [__('Stage'), $data['stage']?->name() ?? __('All stages')],
                 [__('Crop'), $season->crop->name],
                 [__('Status'), CropSeason::statusLabel($season->status)],
                 [__('Area (acres)'), (float) $season->total_area_acres],
-                [__('Season total'), (float) $summary->total_cost],
-                [__('Cost per acre'), (float) $summary->cost_per_acre],
-                [__('Paid'), (float) $summary->paid],
-                [__('Outstanding'), (float) $summary->outstanding],
-                [__('Harvested (kg)'), (float) $summary->harvested_kg],
-                [__('Usable silage (kg)'), (float) $summary->silage_usable_kg],
-                [__('Cost per tonne harvested'), $summary->cost_per_tonne_harvested !== null ? (float) $summary->cost_per_tonne_harvested : ''],
-                [__('Silage cost per tonne'), $summary->silage_cost_per_tonne !== null ? (float) $summary->silage_cost_per_tonne : ''],
+                [$kpis->total_label, $kpis->total],
+                [__('Cost per acre'), $kpis->cost_per_acre ?? ''],
+                [__('Paid'), $kpis->paid],
+                [__('Outstanding'), $kpis->outstanding],
+                [__('Harvested (kg)'), $kpis->harvested_kg],
+                [__('Usable silage (kg)'), $kpis->silage_usable_kg],
+                [__('Cost per kg'), $kpis->cost_per_kg ?? ''],
+                [__('Cost per maund'), $kpis->cost_per_maund ?? ''],
+                [__('Cost per tonne harvested'), $kpis->cost_per_tonne_harvested ?? ''],
+                [__('Yield (maund / acre)'), $kpis->yield_maund_per_acre ?? ''],
+                [__('Benchmark yield (maund / acre)'), $kpis->benchmark_yield_maund ?? ''],
+                [__('Dry matter %'), $kpis->dry_matter_pct],
+                [__('Cost per kg DM'), $kpis->cost_per_kg_dm ?? ''],
+                [__('Production basis'), $kpis->provisional ? __('Provisional estimate') : __('Measured')],
+                [__('Transactions'), $kpis->lines],
+                [__('Incomplete transactions'), $kpis->incomplete_lines],
+                [__('Incomplete spend'), $kpis->incomplete_amount],
+                [__('% spend incomplete'), round($kpis->incomplete_share, 2)],
+                [__('Identified re-work'), $kpis->rework_amount],
+                [__('Silage cost per tonne'), $kpis->silage_cost_per_tonne ?? ''],
             ],
             __('Stages') => array_merge([[__('Stage'), __('Total'), __('Paid'), __('Balance'), __('Lines')]],
                 $season->stages->map(fn ($s) => [$s->name(), (float) $s->totals?->total, (float) $s->totals?->paid, (float) $s->totals?->balance, (int) $s->totals?->line_count])->all()),
             __('Categories') => array_merge([[__('Category'), __('Total'), __('Share %')]],
                 $data['categories']->map(fn ($c) => [__($c->name), $c->total, $c->share])->all()),
-            __('Expenses') => array_merge([[__('Date'), __('Stage'), __('Category'), __('Description'), __('Vendor'), __('Quantity'), __('Unit'), __('Unit price'), __('Amount'), __('Paid'), __('Payment')]],
+            __('Expenses') => array_merge([[__('Date'), __('Stage'), __('Category'), __('Description'), __('Vendor'), __('Quantity'), __('Unit'), __('Unit price'), __('Amount'), __('Paid'), __('Payment'), __('Documentation'), __('Re-work')]],
                 $data['expenses']->map(fn ($e) => [
                     $e->expense_date->toDateString(), $e->stage->name(), $e->category->fullName(), $e->description, $e->vendor?->name ?? '',
                     $e->quantity !== null ? (float) $e->quantity : '', $e->unit_code ?? '', $e->unit_price !== null ? (float) $e->unit_price : '',
-                    (float) $e->amount, (float) $e->status?->paid, $e->status?->payment_status,
+                    (float) $e->amount, (float) $e->status?->paid, $e->status?->payment_status, $e->completeness, $e->is_rework ? __('Yes') : '',
                 ])->all()),
         ];
     }

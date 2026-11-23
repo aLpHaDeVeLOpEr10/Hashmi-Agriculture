@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 class SeasonAndExpenseTest extends TestCase
 {
-    public function test_creating_a_season_assigns_a_code_and_the_five_standard_stages(): void
+    public function test_creating_a_season_assigns_a_code_and_the_four_standard_stages(): void
     {
         $owner = $this->user();
         $this->actingAs($owner);
@@ -30,7 +30,7 @@ class SeasonAndExpenseTest extends TestCase
         $this->assertSame('planned', $season->status);
         $this->assertEquals(10, $season->total_area_acres);
         $this->assertSame(
-            ['Land Preparation', 'Seed & Material Purchase', 'Crop Growing & Maintenance', 'Harvesting', 'Silage Production'],
+            ['Crop Land Preparation', 'Crop Planting', 'Crop Care & Maintenance', 'Crop Harvesting & Production'],
             $season->stages()->with('template')->get()->map(fn ($s) => $s->template->name)->all(),
         );
         $this->assertTrue($season->stages->every(fn ($s) => $s->status === 'not_started'));
@@ -81,6 +81,22 @@ class SeasonAndExpenseTest extends TestCase
         $this->assertEquals(118500, Expense::sole()->amount);
     }
 
+    public function test_documentation_and_rework_flags_are_saved_and_can_be_cleared(): void
+    {
+        $owner = $this->user();
+        $stage = $this->stage($this->season($owner), 'GROWING');
+        $base = ['season_stage_id' => $stage->id, 'category_id' => $this->category('Miscellaneous'), 'expense_date' => '2026-10-12', 'description' => 'Spray', 'amount' => 5000];
+
+        $this->actingAs($owner)->post(route('expenses.store'), $base + ['completeness' => 'incomplete', 'is_rework' => 'on'])->assertRedirect();
+        $expense = Expense::sole();
+        $this->assertSame('incomplete', $expense->completeness);
+        $this->assertTrue($expense->is_rework);
+
+        $this->put(route('expenses.update', $expense), $base + ['completeness' => 'complete'])->assertRedirect();
+        $this->assertSame('complete', $expense->fresh()->completeness);
+        $this->assertFalse($expense->fresh()->is_rework);
+    }
+
     public function test_an_expense_without_amount_or_rate_is_rejected(): void
     {
         $owner = $this->user();
@@ -115,8 +131,7 @@ class SeasonAndExpenseTest extends TestCase
             'LAND_PREP' => [25000, 10000, 5000],
             'SEED_MAT' => [40000, 15000],
             'GROWING' => [20000, 18000],
-            'HARVEST' => [30000, 12000],
-            'SILAGE' => [25000, 20000],
+            'HARVEST' => [30000, 12000, 25000, 20000],
         ];
         foreach ($lines as $code => $amounts) {
             foreach ($amounts as $amount) {
@@ -128,7 +143,7 @@ class SeasonAndExpenseTest extends TestCase
         $this->assertEquals(220000, $summary->total_cost);
         $this->assertEquals(22000, $summary->cost_per_acre);
         $this->assertEquals(
-            [40000, 55000, 38000, 42000, 45000],
+            [40000, 55000, 38000, 87000],
             $season->stages()->with('totals')->get()->map(fn ($s) => (float) $s->totals->total)->all(),
         );
     }
@@ -172,8 +187,8 @@ class SeasonAndExpenseTest extends TestCase
 
         $this->actingAs($owner)->post(route('seasons.stages.store', $season), ['name' => 'Second cutting'])->assertRedirect();
 
-        $this->assertSame(6, $season->stages()->count());
-        $this->assertSame(5, $other->stages()->count());
+        $this->assertSame(5, $season->stages()->count());
+        $this->assertSame(4, $other->stages()->count());
         $this->assertSame('Second cutting', $season->stages()->with('template')->get()->last()->template->name);
     }
 }

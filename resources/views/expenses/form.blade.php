@@ -3,6 +3,15 @@
     $stageId = (int) old('season_stage_id', $expense->season_stage_id);
     $categoryId = old('category_id', $expense->category_id);
     $stage = $season->stages->firstWhere('id', $stageId);
+    $stageTemplateId = ($stage ?? $season->stages->first())?->stage_template_id;
+    // Stage template ids a category is limited to, as "1,3"; "" means every stage.
+    $stagesAttr = fn (?array $ids) => $ids === null ? '' : implode(',', $ids ?: [0]);
+    // A group is listed in a stage when any of its options is.
+    $groupStages = function ($parent) {
+        $sets = $parent->children->isEmpty() ? [$parent->effectiveStageIds()] : $parent->children->map->effectiveStageIds()->all();
+
+        return in_array(null, $sets, true) ? null : array_values(array_unique(array_merge(...$sets)));
+    };
     $initial = [
         'quantity' => old('quantity', $expense->quantity !== null ? (float) $expense->quantity : ''),
         'price' => old('unit_price', $expense->unit_price !== null ? (float) $expense->unit_price : ''),
@@ -26,9 +35,10 @@
 
         <x-card :title="$season->name.' · '.$season->code" :description="__('Every expense belongs to one stage of this season.')">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-form.select :label="__('Stage')" name="season_stage_id" required :placeholder="false">
+                <x-form.select :label="__('Stage')" name="season_stage_id" required :placeholder="false"
+                    x-on:change="$dispatch('stage-picked', Number($event.target.selectedOptions[0]?.dataset.template))">
                     @foreach ($season->stages as $option)
-                        <option value="{{ $option->id }}" @selected($option->id === $stageId)>{{ $loop->iteration }}. {{ $option->name() }}</option>
+                        <option value="{{ $option->id }}" data-template="{{ $option->stage_template_id }}" @selected($option->id === $stageId)>{{ $loop->iteration }}. {{ $option->name() }}</option>
                     @endforeach
                 </x-form.select>
                 <x-form.input :label="__('Date')" name="expense_date" type="date" required :max="now()->addDays(30)->toDateString()" :value="old('expense_date', $expense->expense_date?->toDateString())" />
@@ -48,18 +58,32 @@
                 },
                 sync() { if (!this.manual && this.computed !== null) this.amount = this.computed; },
                 pickCategory(event) { const unit = event.target.selectedOptions[0]?.dataset.unit; if (unit && !this.unit) this.unit = unit; },
+                stage: {{ Js::from($stageTemplateId) }},
+                keep: {{ Js::from($expense->category_id) }},
+                inStage(stages, id = null) { return stages === '' || id === this.keep || stages.split(',').map(Number).includes(this.stage); },
+                pickStage(stage) {
+                    this.stage = stage;
+                    const option = this.$refs.category.selectedOptions[0];
+                    if (option?.value && !this.inStage(option.dataset.stages, Number(option.value))) this.$refs.category.value = '';
+                },
             }"
-            x-init="$watch('quantity', () => sync()); $watch('price', () => sync())">
+            x-init="$watch('quantity', () => sync()); $watch('price', () => sync())"
+            x-on:stage-picked.window="pickStage($event.detail)">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
-                    <x-form.select :label="__('Category')" name="category_id" required x-on:change="pickCategory($event)">
+                    <x-form.select :label="__('Category')" name="category_id" required x-ref="category" x-on:change="pickCategory($event)"
+                        :hint="__('Only categories used in the selected stage are listed.')">
                         @foreach ($categories as $parent)
-                            <optgroup label="{{ __($parent->name) }}">
+                            <optgroup label="{{ __($parent->name) }}" x-show="inStage(@js($stagesAttr($groupStages($parent)))) || @js($parent->children->pluck('id')->push($parent->id)->all()).includes(keep)">
                                 @foreach ($parent->children as $child)
-                                    <option value="{{ $child->id }}" data-unit="{{ $child->default_unit }}" @selected((string) $categoryId === (string) $child->id)>{{ __($child->name) }}</option>
+                                    <option value="{{ $child->id }}" data-unit="{{ $child->default_unit }}" data-stages="{{ $stagesAttr($child->effectiveStageIds()) }}"
+                                        x-bind:hidden="!inStage($el.dataset.stages, {{ $child->id }})" x-bind:disabled="!inStage($el.dataset.stages, {{ $child->id }})"
+                                        @selected((string) $categoryId === (string) $child->id)>{{ __($child->name) }}</option>
                                 @endforeach
                                 @if ($parent->children->isEmpty())
-                                    <option value="{{ $parent->id }}" data-unit="{{ $parent->default_unit }}" @selected((string) $categoryId === (string) $parent->id)>{{ __($parent->name) }}</option>
+                                    <option value="{{ $parent->id }}" data-unit="{{ $parent->default_unit }}" data-stages="{{ $stagesAttr($parent->effectiveStageIds()) }}"
+                                        x-bind:hidden="!inStage($el.dataset.stages, {{ $parent->id }})" x-bind:disabled="!inStage($el.dataset.stages, {{ $parent->id }})"
+                                        @selected((string) $categoryId === (string) $parent->id)>{{ __($parent->name) }}</option>
                                 @endif
                             </optgroup>
                         @endforeach
@@ -99,6 +123,17 @@
                 <x-form.select :label="__('Vendor')" name="vendor_id" :placeholder="'—'" :options="$vendors->pluck('name', 'id')->all()" :selected="old('vendor_id', $expense->vendor_id)" />
                 <x-form.select :label="__('Machine used')" name="resource_id" :placeholder="'—'" :options="$machines->pluck('name', 'id')->all()" :selected="old('resource_id', $expense->resource_id)" />
                 <x-form.select :label="__('Field')" name="field_id" :placeholder="'—'" :options="$fields->pluck('name', 'id')->all()" :selected="old('field_id', $expense->field_id)" />
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <x-form.select :label="__('Documentation')" name="completeness" :placeholder="false"
+                    :options="['complete' => __('Complete'), 'partial' => __('Partial – some details missing'), 'incomplete' => __('Incomplete – lump sum, no breakdown')]"
+                    :selected="old('completeness', $expense->completeness ?? 'complete')"
+                    :hint="__('Incomplete lines count towards the documentation gap in reports.')" />
+                <div class="sm:col-span-2">
+                    <x-toggle name="is_rework" :checked="(bool) old('is_rework', $expense->is_rework)" :label="__('Re-work')"
+                        :description="__('Spent redoing work, e.g. re-ploughing or re-planting. Reported as avoidable re-work.')" />
+                </div>
             </div>
 
             <div class="mt-4">

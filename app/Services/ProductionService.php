@@ -48,6 +48,13 @@ class ProductionService
 
         $batch ??= new SilageBatch(['season_id' => $season->id, 'status' => 'filling']);
         $batch->fill(collect($data)->only(['storage_unit_id', 'fill_start', 'sealed_date', 'fresh_weight_kg', 'method', 'expected_loss_pct'])->all());
+        if ($batch->method === 'pit_volume') {
+            $density = (float) ($data['density_kg_m3'] ?? $season->packing_density_kg_m3);
+            $batch->fill(['length_ft' => $data['length_ft'], 'width_ft' => $data['width_ft'], 'height_ft' => $data['height_ft'], 'density_kg_m3' => $density]);
+            $batch->fresh_weight_kg = SilageBatch::estimateKg((float) $data['length_ft'], (float) $data['width_ft'], (float) $data['height_ft'], $density);
+        } else {
+            $batch->fill(['length_ft' => null, 'width_ft' => null, 'height_ft' => null, 'density_kg_m3' => null]);
+        }
         if ($batch->sealed_date && $batch->status === 'filling') {
             $batch->status = 'sealed';
         }
@@ -58,6 +65,13 @@ class ProductionService
         }
 
         return $batch;
+    }
+
+    /** @param  array{benchmark_yield_maund: ?float, packing_density_kg_m3: float, dry_matter_pct: float}  $data */
+    public function saveSilageSettings(CropSeason $season, array $data): void
+    {
+        $this->seasons->ensureOpen($season);
+        $season->update($data);
     }
 
     public function deleteBatch(SilageBatch $batch): void

@@ -15,9 +15,19 @@ class CostReport
 {
     public const AGEING_BUCKETS = ['0–30', '31–60', '61–90', '90+'];
 
-    public function categoryBreakdown(CropSeason $season): Collection
+    /** 1 maund = 40 kg (Pakistan standard), used for cost per maund and yield in maund/acre. */
+    public const MAUND_KG = 40;
+
+    public function categoryBreakdown(CropSeason $season, ?int $stageId = null): Collection
     {
-        $rows = DB::table('v_category_breakdown')->where('season_id', $season->id)->get();
+        $rows = $stageId === null
+            ? DB::table('v_category_breakdown')->where('season_id', $season->id)->get()
+            : DB::table('v_expense_status as v')
+                ->join('expense_categories as c', 'c.id', '=', 'v.category_id')
+                ->where('v.season_id', $season->id)->where('v.season_stage_id', $stageId)
+                ->groupBy('v.category_id', 'c.parent_id', 'c.cost_type')
+                ->selectRaw('v.category_id, c.parent_id AS parent_category_id, c.cost_type, SUM(CASE WHEN v.is_notional = FALSE THEN v.amount ELSE 0 END) AS total, COUNT(*) AS line_count')
+                ->get();
         $categories = ExpenseCategory::query()->whereIn('id', $rows->pluck('category_id')->merge($rows->pluck('parent_category_id'))->filter())->get()->keyBy('id');
         $total = max((float) $rows->sum('total'), 0.01);
 

@@ -22,11 +22,10 @@ class ReferenceDataSeeder extends Seeder
         }
 
         foreach ([
-            ['LAND_PREP', 'Land Preparation', 1],
-            ['SEED_MAT', 'Seed & Material Purchase', 2],
-            ['GROWING', 'Crop Growing & Maintenance', 3],
-            ['HARVEST', 'Harvesting', 4],
-            ['SILAGE', 'Silage Production', 5],
+            ['LAND_PREP', 'Crop Land Preparation', 1],
+            ['SEED_MAT', 'Crop Planting', 2],
+            ['GROWING', 'Crop Care & Maintenance', 3],
+            ['HARVEST', 'Crop Harvesting & Production', 4],
         ] as [$code, $name, $sequence]) {
             StageTemplate::updateOrCreate(['code' => $code], ['name' => $name, 'sequence' => $sequence, 'is_system' => true, 'is_active' => true]);
         }
