@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CropSeason;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Machine;
 use App\Models\MachineUsage;
@@ -43,6 +44,50 @@ class MachineryController extends Controller
             'seasons' => $this->openSeasons(),
             'categories' => ExpenseCategory::tree(),
             'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function showMachine(Request $request, Machine $machine): View
+    {
+        $filters = [
+            'season' => $request->integer('season') ?: null,
+            'category' => $request->integer('category') ?: null,
+            'status' => in_array($request->query('status'), ['unpaid', 'partial', 'paid'], true) ? $request->query('status') : null,
+        ];
+
+        // Every bill tagged with this machine, across all seasons (the same set the machine card totals).
+        $all = Expense::query()->where('resource_id', $machine->id)
+            ->with(['season', 'stage.template', 'category.parent', 'vendor', 'unit', 'status', 'attachments'])
+            ->orderByDesc('expense_date')->orderByDesc('id')->get();
+
+        $bills = $all
+            ->when($filters['season'], fn ($c, $id) => $c->where('season_id', $id))
+            ->when($filters['category'], fn ($c, $id) => $c->where('category_id', $id))
+            ->when($filters['status'], fn ($c, $s) => $c->filter(fn ($e) => $e->status?->payment_status === $s))
+            ->values();
+        $real = $bills->reject(fn ($e) => $e->is_notional);
+
+        return view('machinery.show', [
+            'machine' => $machine,
+            'bills' => $bills,
+            'filters' => $filters,
+            'summary' => (object) [
+                'count' => $real->count(),
+                'amount' => (float) $real->sum('amount'),
+                'paid' => (float) $real->sum(fn ($e) => $e->status?->paid ?? 0),
+                'balance' => (float) $real->sum(fn ($e) => $e->status?->balance ?? 0),
+                'fuel' => (float) $real->where('unit_code', 'litre')->sum('quantity'),
+                'first' => $real->min('expense_date'),
+                'last' => $real->max('expense_date'),
+            ],
+            'byCategory' => $real->groupBy('category_id')
+                ->map(fn ($items) => (object) ['category' => $items->first()->category, 'count' => $items->count(), 'amount' => (float) $items->sum('amount')])
+                ->sortByDesc('amount')->values(),
+            'seasons' => $all->pluck('season')->filter()->unique('id')->sortByDesc('start_date')->values(),
+            'categories' => $all->pluck('category')->filter()->unique('id')->sortBy(fn ($c) => $c->fullName())->values(),
+            'usage' => MachineUsage::query()->where('resource_id', $machine->id)
+                ->with(['stage.season', 'stage.template'])->latest('usage_date')->latest('id')->get(),
+            'sharedCosts' => SharedCost::query()->where('resource_id', $machine->id)->with(['category.parent', 'vendor'])->latest('cost_date')->get(),
         ]);
     }
 

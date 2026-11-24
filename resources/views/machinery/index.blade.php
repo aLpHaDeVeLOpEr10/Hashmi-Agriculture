@@ -39,7 +39,7 @@
                                 <div class="flex items-center gap-3">
                                     <span class="grid size-9 place-items-center rounded-lg bg-stone-100 text-stone-600"><x-icon :name="$item->type === 'pump' ? 'droplets' : 'tractor'" class="size-4" /></span>
                                     <div>
-                                        <p class="font-medium text-stone-900">{{ $item->name }}</p>
+                                        <a href="{{ route('machinery.machines.show', $item) }}" class="font-medium text-stone-900 hover:text-brand-700">{{ $item->name }}</a>
                                         <p class="text-xs text-stone-500">{{ __(ucfirst($item->type)) }} · {{ __(ucfirst($item->ownership)) }}@if ($item->internal_rate_per_hour) · {{ __(':rate/h internal', ['rate' => Money::number($item->internal_rate_per_hour)]) }}@endif</p>
                                     </div>
                                 </div>
@@ -58,6 +58,10 @@
                                 <div><dt class="text-xs text-stone-500">{{ __('Bills') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ $c->bills ?? 0 }}</dd></div>
                                 <div><dt class="text-xs text-stone-500">{{ __('Fuel bought') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ ($c->fuel_litres ?? 0) > 0 ? Money::number($c->fuel_litres).' L' : '—' }}</dd></div>
                             </dl>
+                            <a href="{{ route('machinery.machines.show', $item) }}" class="mt-3 flex items-center justify-between rounded-md bg-stone-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 hover:text-brand-800">
+                                <span>{{ __('View bills & details') }}</span>
+                                <x-icon name="arrow-right" class="size-4 rtl:rotate-180" />
+                            </a>
                         </div>
                     @endforeach
                 </div>

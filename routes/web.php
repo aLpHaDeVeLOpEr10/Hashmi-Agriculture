@@ -73,6 +73,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('machinery')->name('machinery.')->group(function () {
         Route::get('/', [MachineryController::class, 'index'])->name('index');
         Route::post('/machines', [MachineryController::class, 'storeMachine'])->name('machines.store');
+        Route::get('/machines/{machine}', [MachineryController::class, 'showMachine'])->name('machines.show');
         Route::put('/machines/{machine}', [MachineryController::class, 'updateMachine'])->name('machines.update');
         Route::post('/usage', [MachineryController::class, 'storeUsage'])->name('usage.store');
         Route::delete('/usage/{usage}', [MachineryController::class, 'destroyUsage'])->name('usage.destroy');

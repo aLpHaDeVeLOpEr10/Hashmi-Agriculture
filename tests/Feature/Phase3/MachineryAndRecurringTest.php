@@ -53,6 +53,44 @@ class MachineryAndRecurringTest extends TestCase
             ->assertSee('Running cost');
     }
 
+    public function test_machine_page_lists_its_bills_with_payment_totals_and_filters(): void
+    {
+        $owner = $this->user();
+        $this->actingAs($owner);
+        $season = $this->season($owner);
+        $stage = $this->stage($season, 'LAND_PREP');
+        $tractor = Machine::create(['name' => 'Tractor', 'type' => 'tractor', 'ownership' => 'owned']);
+        $sprayer = Machine::create(['name' => 'Spray machine', 'type' => 'implement', 'ownership' => 'owned']);
+        $service = app(\App\Services\ExpenseService::class);
+        $diesel = $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Diesel'), 'expense_date' => '2026-10-10', 'description' => 'Tractor diesel', 'quantity' => 100, 'unit_code' => 'litre', 'unit_price' => 250, 'resource_id' => $tractor->id]);
+        $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Tractor repair'), 'expense_date' => '2026-10-11', 'description' => 'Pipe change', 'amount' => 1500, 'resource_id' => $tractor->id]);
+        $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Diesel'), 'expense_date' => '2026-10-12', 'description' => 'Sprayer diesel', 'amount' => 999, 'resource_id' => $sprayer->id]);
+        $this->post(route('expenses.pay', $diesel), ['amount' => 25000, 'payment_date' => '2026-10-15', 'method' => 'cash'])->assertRedirect();
+
+        $this->get(route('machinery.index'))->assertSee(route('machinery.machines.show', $tractor));
+
+        $this->get(route('machinery.machines.show', $tractor))->assertOk()
+            ->assertSee('Tractor diesel')->assertSee('Pipe change')->assertDontSee('Sprayer diesel')
+            ->assertViewHas('summary', fn ($s) => $s->count === 2 && $s->amount === 26500.0 && $s->paid === 25000.0 && $s->balance === 1500.0 && $s->fuel === 100.0)
+            ->assertViewHas('byCategory', fn ($rows) => $rows->count() === 2 && $rows->first()->amount === 25000.0);
+
+        $this->get(route('machinery.machines.show', [$tractor, 'status' => 'unpaid']))->assertOk()
+            ->assertSee('Pipe change')->assertDontSee('Tractor diesel');
+        $this->get(route('machinery.machines.show', [$tractor, 'category' => $this->category('Diesel')]))->assertOk()
+            ->assertViewHas('bills', fn ($bills) => $bills->pluck('description')->all() === ['Tractor diesel']);
+
+        $this->actingAs($this->user('viewer'))->get(route('machinery.machines.show', $tractor))->assertOk()->assertSee('Pipe change');
+    }
+
+    public function test_machine_page_is_not_visible_to_another_farm(): void
+    {
+        $this->actingAs($this->user());
+        $tractor = Machine::create(['name' => 'Tractor', 'type' => 'tractor', 'ownership' => 'owned']);
+        $outsider = $this->user('owner', \App\Models\Farm::create(['name' => 'Other farm']));
+
+        $this->actingAs($outsider)->get(route('machinery.machines.show', $tractor))->assertNotFound();
+    }
+
     public function test_manual_split_must_add_up_to_100_and_rounding_never_loses_a_rupee(): void
     {
         $owner = $this->user();
