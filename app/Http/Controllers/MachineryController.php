@@ -27,10 +27,16 @@ class MachineryController extends Controller
             ->groupBy('resource_id')
             ->selectRaw('resource_id, SUM(hours) as hours, SUM(acres) as acres, SUM(fuel_litres) as litres, COUNT(*) as entries')
             ->get()->keyBy('resource_id');
+        // Running cost: every bill tagged with the machine (diesel, repairs, petrol...), across all seasons.
+        $costs = DB::table('expenses')->whereIn('resource_id', $machines->pluck('id'))->whereNull('deleted_at')->where('is_notional', false)
+            ->groupBy('resource_id')
+            ->selectRaw("resource_id, SUM(amount) as amount, COUNT(*) as bills, SUM(CASE WHEN unit_code = 'litre' THEN quantity ELSE 0 END) as fuel_litres")
+            ->get()->keyBy('resource_id');
 
         return view('machinery.index', [
             'machines' => $machines,
             'totals' => $totals,
+            'costs' => $costs,
             'usage' => MachineUsage::query()->whereIn('resource_id', $machines->pluck('id'))
                 ->with(['machine', 'stage.season', 'stage.template'])->latest('usage_date')->latest('id')->limit(25)->get(),
             'sharedCosts' => SharedCost::query()->with(['category.parent', 'machine', 'vendor', 'expenses.season'])->latest('cost_date')->latest('id')->get(),

@@ -6,11 +6,8 @@ use App\Models\Crop;
 use App\Models\ExpenseCategory;
 use App\Models\Farm;
 use App\Models\Field;
-use App\Models\Machine;
-use App\Models\MachineUsage;
 use App\Models\RecurringRule;
 use App\Models\SeasonStage;
-use App\Models\SharedCost;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\ExpenseService;
@@ -53,9 +50,7 @@ class DemoFarmSeeder extends Seeder
             ['Okara Agri Traders', '03124567711', 'supplier'],
         ])->mapWithKeys(fn ($v) => [$v[0] => Vendor::create(['name' => $v[0], 'phone' => $v[1], 'type' => $v[2]])]);
 
-        $tractor = Machine::create(['name' => 'Massey Ferguson 385', 'type' => 'tractor', 'ownership' => 'owned', 'internal_rate_per_hour' => 1500]);
-        Machine::create(['name' => 'Rented forage chopper', 'type' => 'chopper', 'ownership' => 'rented']);
-        Machine::create(['name' => 'Tubewell pump B-1', 'type' => 'pump', 'ownership' => 'owned']);
+        // No demo machines, usage logs or shared costs: the Machinery page shows only real data.
 
         $cat = fn (string $name) => ExpenseCategory::query()->where('name', $name)->whereNotNull('parent_id')->firstOrFail()->id;
         $maize = Crop::where('name', 'Maize')->value('id');
@@ -78,7 +73,7 @@ class DemoFarmSeeder extends Seeder
         ]);
         $plan = [
             'LAND_PREP' => [
-                ['expense_date' => '2026-03-02', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for ploughing and discing', 'quantity' => 100, 'unit_code' => 'litre', 'unit_price' => 250, 'vendor_id' => $vendor['PSO Renala Filling Station']->id, 'resource_id' => $tractor->id],
+                ['expense_date' => '2026-03-02', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for ploughing and discing', 'quantity' => 100, 'unit_code' => 'litre', 'unit_price' => 250, 'vendor_id' => $vendor['PSO Renala Filling Station']->id],
                 ['expense_date' => '2026-03-03', 'category_id' => $cat('Rotavator & disc'), 'description' => 'Rotavator, 10 acres', 'quantity' => 10, 'unit_code' => 'acre', 'unit_price' => 1000, 'vendor_id' => $vendor['Rana Tractor Services']->id],
                 ['expense_date' => '2026-03-04', 'category_id' => $cat('Daily wages'), 'description' => 'Levelling and ridging labour', 'quantity' => 5, 'unit_code' => 'day', 'unit_price' => 1000],
             ],
@@ -108,7 +103,7 @@ class DemoFarmSeeder extends Seeder
             'notes' => 'Autumn maize across two fields.',
         ]);
         $add($autumn, 'LAND_PREP', [
-            ['expense_date' => '2026-08-03', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for ploughing, 27 acres', 'quantity' => 260, 'unit_code' => 'litre', 'unit_price' => 262, 'vendor_id' => $vendor['PSO Renala Filling Station']->id, 'resource_id' => $tractor->id],
+            ['expense_date' => '2026-08-03', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for ploughing, 27 acres', 'quantity' => 260, 'unit_code' => 'litre', 'unit_price' => 262, 'vendor_id' => $vendor['PSO Renala Filling Station']->id],
             ['expense_date' => '2026-08-05', 'category_id' => $cat('Rotavator & disc'), 'description' => 'Rotavator, 27 acres', 'quantity' => 27, 'unit_code' => 'acre', 'unit_price' => 1100, 'vendor_id' => $vendor['Rana Tractor Services']->id],
         ])->update(['status' => 'completed', 'end_date' => '2026-08-06']);
         $add($autumn, 'SEED_MAT', [
@@ -132,7 +127,7 @@ class DemoFarmSeeder extends Seeder
             'notes' => 'Winter oats for fodder and silage.',
         ]);
         $add($oatsSeason, 'LAND_PREP', [
-            ['expense_date' => '2026-10-16', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for land preparation', 'quantity' => 70, 'unit_code' => 'litre', 'unit_price' => 265, 'vendor_id' => $vendor['PSO Renala Filling Station']->id, 'resource_id' => $tractor->id],
+            ['expense_date' => '2026-10-16', 'category_id' => $cat('Diesel'), 'description' => 'Diesel for land preparation', 'quantity' => 70, 'unit_code' => 'litre', 'unit_price' => 265, 'vendor_id' => $vendor['PSO Renala Filling Station']->id],
             ['expense_date' => '2026-10-18', 'category_id' => $cat('Farmyard manure'), 'description' => 'Farmyard manure, 6 trolleys', 'quantity' => 6, 'unit_code' => 'trolley', 'unit_price' => 3500],
         ]);
 
@@ -160,18 +155,6 @@ class DemoFarmSeeder extends Seeder
         }
 
         $stageOf = fn ($season, string $code) => SeasonStage::query()->where('season_id', $season->id)->whereHas('template', fn ($q) => $q->where('code', $code))->firstOrFail();
-        foreach ([
-            [$autumn, 'LAND_PREP', '2026-08-03', 24, 27, 260, 'Rashid Ali'],
-            [$autumn, 'HARVEST', '2026-10-21', 9, 12, 70, 'Rashid Ali'],
-            [$oatsSeason, 'LAND_PREP', '2026-10-16', 16, 8, 70, 'Rashid Ali'],
-        ] as [$season, $code, $date, $hours, $acres, $litres, $operator]) {
-            MachineUsage::create(['resource_id' => $tractor->id, 'season_stage_id' => $stageOf($season, $code)->id, 'usage_date' => $date, 'hours' => $hours, 'acres' => $acres, 'fuel_litres' => $litres, 'operator' => $operator]);
-        }
-
-        SharedCost::create([
-            'category_id' => $cat('Tractor repair'), 'resource_id' => $tractor->id, 'vendor_id' => $vendor['Rana Tractor Services']->id,
-            'cost_date' => '2026-10-22', 'description' => 'MF-385 hydraulic pump repair', 'total_amount' => 12000, 'basis' => 'hours', 'status' => 'draft',
-        ]);
 
         RecurringRule::create([
             'season_stage_id' => $stageOf($oatsSeason, 'GROWING')->id, 'category_id' => $cat('Tubewell electricity'), 'vendor_id' => $vendor['LESCO']->id,

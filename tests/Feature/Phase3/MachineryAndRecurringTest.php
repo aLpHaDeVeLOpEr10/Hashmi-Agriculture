@@ -37,6 +37,22 @@ class MachineryAndRecurringTest extends TestCase
         $this->assertSame(2, Expense::where('shared_cost_id', $cost->id)->count());
     }
 
+    public function test_machine_card_shows_running_cost_from_its_bills(): void
+    {
+        $owner = $this->user();
+        $this->actingAs($owner);
+        $stage = $this->stage($this->season($owner), 'LAND_PREP');
+        $tractor = Machine::create(['name' => 'Tractor', 'type' => 'tractor', 'ownership' => 'owned']);
+        $service = app(\App\Services\ExpenseService::class);
+        $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Diesel'), 'expense_date' => '2026-10-10', 'description' => 'Tractor diesel', 'quantity' => 100, 'unit_code' => 'litre', 'unit_price' => 250, 'resource_id' => $tractor->id]);
+        $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Tractor repair'), 'expense_date' => '2026-10-11', 'description' => 'Pipe change', 'amount' => 1500, 'resource_id' => $tractor->id]);
+        $service->save(['season_stage_id' => $stage->id, 'category_id' => $this->category('Diesel'), 'expense_date' => '2026-10-11', 'description' => 'Not this machine', 'amount' => 9999]);
+
+        $this->get(route('machinery.index'))->assertOk()
+            ->assertViewHas('costs', fn ($c) => (float) $c[$tractor->id]->amount === 26500.0 && (int) $c[$tractor->id]->bills === 2 && (float) $c[$tractor->id]->fuel_litres === 100.0)
+            ->assertSee('Running cost');
+    }
+
     public function test_manual_split_must_add_up_to_100_and_rounding_never_loses_a_rupee(): void
     {
         $owner = $this->user();

@@ -33,7 +33,7 @@
             @else
                 <div class="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
                     @foreach ($machines as $item)
-                        @php $t = $totals[$item->id] ?? null; @endphp
+                        @php $t = $totals[$item->id] ?? null; $c = $costs[$item->id] ?? null; @endphp
                         <div @class(['rounded-lg border p-4', 'border-stone-200' => $item->is_active, 'border-dashed border-stone-200 opacity-60' => ! $item->is_active])>
                             <div class="flex items-start justify-between gap-2">
                                 <div class="flex items-center gap-3">
@@ -52,6 +52,11 @@
                                 <div><dt class="text-xs text-stone-500">{{ __('Hours') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ Money::quantity($t->hours ?? 0) }}</dd></div>
                                 <div><dt class="text-xs text-stone-500">{{ __('Acres') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ Money::quantity($t->acres ?? 0) }}</dd></div>
                                 <div><dt class="text-xs text-stone-500">{{ __('Litres / acre') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ ($t->acres ?? 0) > 0 ? Money::number($t->litres / $t->acres, 1) : '—' }}</dd></div>
+                            </dl>
+                            <dl class="mt-3 grid grid-cols-3 gap-2 border-t border-stone-100 pt-3 text-sm">
+                                <div><dt class="text-xs text-stone-500">{{ __('Running cost') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ $c ? Money::format($c->amount) : '—' }}</dd></div>
+                                <div><dt class="text-xs text-stone-500">{{ __('Bills') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ $c->bills ?? 0 }}</dd></div>
+                                <div><dt class="text-xs text-stone-500">{{ __('Fuel bought') }}</dt><dd class="font-semibold text-stone-900 tabular-nums">{{ ($c->fuel_litres ?? 0) > 0 ? Money::number($c->fuel_litres).' L' : '—' }}</dd></div>
                             </dl>
                         </div>
                     @endforeach
