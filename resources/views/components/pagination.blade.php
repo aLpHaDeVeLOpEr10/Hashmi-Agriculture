@@ -25,15 +25,16 @@
 @endphp
 
 @if ($paginator->total() > \App\Support\Pagination::SIZES[0])
-    <nav {{ $attributes->class(['flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 px-5 py-3 text-sm']) }} aria-label="{{ __('Page navigation') }}">
+    <nav data-pager {{ $attributes->class(['flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 px-5 py-3 text-sm']) }} aria-label="{{ __('Page navigation') }}">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-stone-600">
-            <span class="tabular-nums">{{ __('Showing :from–:to of :total', ['from' => $paginator->firstItem() ?? 0, 'to' => $paginator->lastItem() ?? 0, 'total' => $paginator->total()]) }}</span>
-            <form method="GET" action="{{ $action }}" class="flex items-center gap-2">
+            <span class="tabular-nums" aria-live="polite">{{ __('Showing :from–:to of :total', ['from' => $paginator->firstItem() ?? 0, 'to' => $paginator->lastItem() ?? 0, 'total' => $paginator->total()]) }}</span>
+            {{-- Page size is remembered for the session, so every paged table on the page is refreshed. --}}
+            <form method="GET" action="{{ $action }}" class="flex items-center gap-2" data-pager-form data-pager-all>
                 @foreach ($keep as [$name, $value])
                     <input type="hidden" name="{{ $name }}" value="{{ $value }}">
                 @endforeach
                 <label class="text-stone-500" for="per-page-{{ $pageName }}">{{ __('Rows per page') }}</label>
-                <select id="per-page-{{ $pageName }}" name="per_page" onchange="this.form.submit()" class="form-control h-8 w-auto py-0 pe-8 text-sm">
+                <select id="per-page-{{ $pageName }}" name="per_page" onchange="this.form.requestSubmit()" class="form-control h-8 w-auto py-0 pe-8 text-sm">
                     @foreach (\App\Support\Pagination::SIZES as $size)
                         <option value="{{ $size }}" @selected($paginator->perPage() === $size)>{{ $size }}</option>
                     @endforeach

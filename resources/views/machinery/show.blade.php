@@ -23,7 +23,7 @@
         </div>
     </section>
 
-    <div class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div id="machine-summary" class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <x-kpi-tile :label="__('Running cost')" :value="Money::format($summary->amount)" icon="wallet" />
         <x-kpi-tile :label="__('Bills')" :value="$summary->count" icon="receipt" tone="stone"
             :caption="$summary->first ? $summary->first->translatedFormat('d M Y').' – '.$summary->last->translatedFormat('d M Y') : null" />
@@ -33,20 +33,20 @@
     </div>
 
     <x-card id="bills" :title="__('Bills')" :description="__('Every expense tagged with this machine, newest first')" flush class="mt-6 scroll-mt-20">
-        <form method="GET" action="{{ route('machinery.machines.show', $machine) }}" class="flex flex-wrap items-center gap-2 border-b border-stone-100 px-5 py-3">
-            <select name="season" onchange="this.form.submit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Season') }}">
+        <form method="GET" action="{{ route('machinery.machines.show', $machine) }}#bills" data-pager-form data-pager-targets="machine-summary bills by-category" class="flex flex-wrap items-center gap-2 border-b border-stone-100 px-5 py-3">
+            <select name="season" onchange="this.form.requestSubmit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Season') }}">
                 <option value="">{{ __('All seasons') }}</option>
                 @foreach ($seasons as $s)
                     <option value="{{ $s->id }}" @selected($filters['season'] === $s->id)>{{ $s->name }}</option>
                 @endforeach
             </select>
-            <select name="category" onchange="this.form.submit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Category') }}">
+            <select name="category" onchange="this.form.requestSubmit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Category') }}">
                 <option value="">{{ __('All categories') }}</option>
                 @foreach ($categories as $c)
                     <option value="{{ $c->id }}" @selected($filters['category'] === $c->id)>{{ $c->parent ? __($c->parent->name).' → ' : '' }}{{ __($c->name) }}</option>
                 @endforeach
             </select>
-            <select name="status" onchange="this.form.submit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Payment') }}">
+            <select name="status" onchange="this.form.requestSubmit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Payment') }}">
                 <option value="">{{ __('Any payment status') }}</option>
                 @foreach (['unpaid' => __('Unpaid'), 'partial' => __('Partial'), 'paid' => __('Paid')] as $value => $label)
                     <option value="{{ $value }}" @selected($filters['status'] === $value)>{{ $label }}</option>
@@ -54,7 +54,7 @@
             </select>
             <noscript><x-button type="submit" variant="secondary" size="sm">{{ __('Filter') }}</x-button></noscript>
             @if ($filtered)
-                <a href="{{ route('machinery.machines.show', $machine) }}" class="text-sm font-medium text-brand-700 hover:text-brand-800">{{ __('Clear filters') }}</a>
+                <a href="{{ route('machinery.machines.show', $machine) }}#bills" data-pager-link data-pager-targets="machine-summary bills by-category" class="text-sm font-medium text-brand-700 hover:text-brand-800">{{ __('Clear filters') }}</a>
             @endif
         </form>
 
@@ -136,7 +136,7 @@
     </x-card>
 
     <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <x-card :title="__('Cost by category')" :description="$filtered ? __('For the filtered bills') : __('Where this machine\'s money goes')" flush>
+        <x-card id="by-category" :title="__('Cost by category')" :description="$filtered ? __('For the filtered bills') : __('Where this machine\'s money goes')" flush>
             @if ($byCategory->isEmpty())
                 <x-empty-state icon="chart-pie" :title="__('Nothing to break down yet')" />
             @else

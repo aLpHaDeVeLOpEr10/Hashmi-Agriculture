@@ -2,6 +2,7 @@ import Alpine from 'alpinejs';
 import focus from '@alpinejs/focus';
 import { initCharts } from './charts';
 import { registerOffline } from './offline';
+import { registerPager } from './pager';
 
 const storage = {
     get(key) {
@@ -159,6 +160,7 @@ Alpine.data('globalSearch', (items) => ({
 }));
 
 registerOffline(Alpine);
+registerPager();
 
 window.Alpine = Alpine;
 Alpine.start();
