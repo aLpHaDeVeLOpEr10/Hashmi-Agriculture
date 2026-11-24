@@ -65,6 +65,7 @@
             <x-table min-width="min-w-[980px]">
                 <x-slot:head>
                     <tr>
+                        <th class="w-12 text-end">#</th>
                         <th>{{ __('Date') }}</th>
                         <th>{{ __('Season · Stage') }}</th>
                         <th>{{ __('Category') }}</th>
@@ -77,6 +78,7 @@
                 </x-slot:head>
                 @foreach ($bills as $expense)
                     <tr>
+                        <td class="w-12 text-end text-stone-400 tabular-nums">{{ $bills->firstItem() + $loop->index }}</td>
                         <td class="whitespace-nowrap">{{ $expense->expense_date->translatedFormat('d M Y') }}</td>
                         <td class="whitespace-nowrap">
                             @if ($expense->season)
@@ -124,7 +126,7 @@
                     </tr>
                 @endforeach
                 <tr class="bg-stone-50 font-semibold">
-                    <td colspan="5" class="text-stone-700">{{ trans_choice(':count bill|:count bills', $summary->count, ['count' => $summary->count]) }}@if ($filtered) · {{ __('filtered') }}@endif</td>
+                    <td colspan="6" class="text-stone-700">{{ trans_choice(':count bill|:count bills', $summary->count, ['count' => $summary->count]) }}@if ($filtered) · {{ __('filtered') }}@endif</td>
                     <td class="text-end whitespace-nowrap text-stone-900 tabular-nums">{{ Money::format($summary->amount) }}</td>
                     <td colspan="2" class="text-xs font-normal whitespace-nowrap text-stone-500 tabular-nums">
                         @if ($summary->balance > 0){{ __(':amount due', ['amount' => Money::number($summary->balance)]) }}@endif

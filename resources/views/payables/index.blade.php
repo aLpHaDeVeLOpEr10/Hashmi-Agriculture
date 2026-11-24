@@ -61,6 +61,7 @@
                     <x-table min-width="min-w-[760px]">
                         <x-slot:head>
                             <tr>
+                                <th class="w-12 text-end">#</th>
                                 <th>{{ __('Date') }}</th>
                                 <th>{{ __('Description') }}</th>
                                 <th>{{ __('Season / stage') }}</th>
@@ -72,6 +73,7 @@
                         </x-slot:head>
                         @foreach ($group->page as $bill)
                             <tr>
+                                <td class="w-12 text-end text-stone-400 tabular-nums">{{ $group->page->firstItem() + $loop->index }}</td>
                                 <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($bill->expense_date)->translatedFormat('d M Y') }}</td>
                                 <td class="font-medium text-stone-900">{{ $bill->description }}</td>
                                 <td class="whitespace-nowrap">

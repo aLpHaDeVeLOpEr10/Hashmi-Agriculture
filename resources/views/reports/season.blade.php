@@ -110,6 +110,7 @@
         <x-table min-width="min-w-[900px]">
             <x-slot:head>
                 <tr>
+                    <th class="w-12 text-end">#</th>
                     <th>{{ __('Date') }}</th>
                     <th>{{ __('Stage') }}</th>
                     <th>{{ __('Category') }}</th>
@@ -121,6 +122,7 @@
             </x-slot:head>
             @foreach ($expenses as $expense)
                 <tr>
+                    <td class="w-12 text-end text-stone-400 tabular-nums">{{ $expenses->firstItem() + $loop->index }}</td>
                     <td class="whitespace-nowrap">{{ $expense->expense_date->translatedFormat('d M Y') }}</td>
                     <td class="whitespace-nowrap">{{ $expense->stage->name() }}</td>
                     <td class="whitespace-nowrap">{{ __($expense->category->name) }}</td>

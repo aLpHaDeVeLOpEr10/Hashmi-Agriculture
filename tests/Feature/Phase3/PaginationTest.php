@@ -48,6 +48,10 @@ class PaginationTest extends TestCase
             ->assertSee('Bill 23')->assertDontSee('Bill 13')
             ->assertSee('23 lines')->assertSee('Showing 1–10 of 23')->assertSee('Rows per page')->assertSee('page=2#expenses', false);
 
+        // Row numbers continue across pages: page 2 starts at 11 (newest first, so row 11 is "Bill 13").
+        $this->get($url.'?page=2')->assertOk()
+            ->assertSeeInOrder(['tabular-nums">11</td>', 'Bill 13', 'tabular-nums">20</td>', 'Bill 04'], false);
+
         $this->get($url.'?page=3')->assertOk()->assertSee('Bill 01')->assertDontSee('Bill 04')->assertSee('Showing 21–23 of 23');
         $this->get($url.'?page=99')->assertOk()->assertViewHas('expenses', fn ($p) => $p->currentPage() === 3);
 
