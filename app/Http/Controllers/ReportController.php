@@ -6,6 +6,7 @@ use App\Models\CropSeason;
 use App\Models\Expense;
 use App\Models\SeasonStage;
 use App\Support\CostReport;
+use App\Support\Pagination;
 use App\Support\ReportExporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -44,7 +45,8 @@ class ReportController extends Controller
         return match ($this->format($request)) {
             'pdf' => $this->exporter->pdf('reports.pdf.season', $data, $filename),
             'xlsx' => $this->exporter->xlsx($this->seasonSheets($data), $filename),
-            default => response()->view('reports.season', $data),
+            // On screen the expense list is paged; exports above always contain every line.
+            default => response()->view('reports.season', ['expenses' => Pagination::collection($expenses, $request, fragment: 'expenses')] + $data),
         };
     }
 

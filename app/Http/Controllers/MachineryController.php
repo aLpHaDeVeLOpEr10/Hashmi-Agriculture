@@ -11,6 +11,7 @@ use App\Models\SharedCost;
 use App\Models\Vendor;
 use App\Services\MachineService;
 use App\Services\SharedCostService;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,7 +70,7 @@ class MachineryController extends Controller
 
         return view('machinery.show', [
             'machine' => $machine,
-            'bills' => $bills,
+            'bills' => Pagination::collection($bills, $request, fragment: 'bills'),
             'filters' => $filters,
             'summary' => (object) [
                 'count' => $real->count(),

@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Services\PaymentService;
 use App\Support\CostReport;
 use App\Support\Money;
+use App\Support\Pagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,7 @@ class PayableController extends Controller
 {
     public function __construct(private PaymentService $payments) {}
 
-    public function index(CostReport $report): View
+    public function index(Request $request, CostReport $report): View
     {
         $bills = $report->outstandingBills();
 
@@ -28,7 +29,9 @@ class PayableController extends Controller
                     'phone' => $items->first()->vendor_phone,
                     'balance' => (float) $items->sum('balance'),
                     'oldest' => $items->min('expense_date'),
+                    // All bills feed the payment dialog; the table shows one page of them (each vendor pages on its own).
                     'bills' => $items->values(),
+                    'page' => Pagination::collection($items->values(), $request, 'vendor_'.($vendorId ?: 0), 'vendor-'.($vendorId ?: 0)),
                 ])
                 ->sortBy('oldest')
                 ->values(),

@@ -65,7 +65,7 @@
     </section>
 
     <div class="mt-6 grid grid-cols-1 gap-6 2xl:grid-cols-4">
-        <x-card :title="__('Expenses')" :description="trans_choice(':count line|:count lines', $expenses->count())" flush class="2xl:col-span-3">
+        <x-card id="expenses" :title="__('Expenses')" :description="trans_choice(':count line|:count lines', $expenses->total())" flush class="scroll-mt-20 2xl:col-span-3">
             @if ($expenses->isEmpty())
                 <x-empty-state icon="receipt" :title="__('No expenses in this stage yet')" :description="__('Each expense you add here counts towards the stage and season totals.')">
                     @if ($open)
@@ -137,6 +137,7 @@
                         </tr>
                     @endforeach
                 </x-table>
+                <x-pagination :paginator="$expenses" />
             @endif
         </x-card>
 

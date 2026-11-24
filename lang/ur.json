@@ -771,5 +771,12 @@
     "No hours logged": "کوئی گھنٹے درج نہیں",
     "Use Log hours on the Machinery page to record hours, acres and fuel used.": "گھنٹے، ایکڑ اور استعمال شدہ ایندھن درج کرنے کے لیے مشینری کے صفحے پر \"گھنٹے درج کریں\" استعمال کریں۔",
     "Repairs and parts for this machine, split across seasons": "اس مشین کی مرمت اور پرزے، سیزنوں میں تقسیم",
-    "View bills & details": "بل اور تفصیل دیکھیں"
+    "View bills & details": "بل اور تفصیل دیکھیں",
+    "Page navigation": "صفحات کی نیویگیشن",
+    "Showing :from–:to of :total": ":total میں سے :from–:to",
+    "Rows per page": "فی صفحہ قطاریں",
+    "Apply": "لاگو کریں",
+    "Previous": "پچھلا",
+    "Next": "اگلا",
+    "Page :page": "صفحہ :page"
 }

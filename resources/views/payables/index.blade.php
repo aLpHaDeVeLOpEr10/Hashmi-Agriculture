@@ -48,7 +48,7 @@
     <div x-data="paymentAllocator" x-on:pay-vendor.window="load($event.detail); $dispatch('open-modal', 'record-payment')">
         <div class="mt-6 space-y-4">
             @forelse ($groups as $group)
-                <x-card :title="$group->name" :description="($group->phone ? \App\Support\Phone::display($group->phone).' · ' : '').trans_choice(':count bill|:count bills', $group->bills->count()).' · '.__('oldest :date', ['date' => \Illuminate\Support\Carbon::parse($group->oldest)->translatedFormat('d M Y')])" flush>
+                <x-card id="vendor-{{ $group->vendor_id ?? 0 }}" class="scroll-mt-20" :title="$group->name" :description="($group->phone ? \App\Support\Phone::display($group->phone).' · ' : '').trans_choice(':count bill|:count bills', $group->bills->count()).' · '.__('oldest :date', ['date' => \Illuminate\Support\Carbon::parse($group->oldest)->translatedFormat('d M Y')])" flush>
                     <x-slot:actions>
                         <span class="text-sm text-stone-500">{{ __('Balance') }} <span class="font-semibold text-red-700 tabular-nums">{{ Money::format($group->balance) }}</span></span>
                         @if ($canPay)
@@ -70,7 +70,7 @@
                                 <th class="text-end">{{ __('Age') }}</th>
                             </tr>
                         </x-slot:head>
-                        @foreach ($group->bills as $bill)
+                        @foreach ($group->page as $bill)
                             <tr>
                                 <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($bill->expense_date)->translatedFormat('d M Y') }}</td>
                                 <td class="font-medium text-stone-900">{{ $bill->description }}</td>
@@ -85,6 +85,7 @@
                             </tr>
                         @endforeach
                     </x-table>
+                    <x-pagination :paginator="$group->page" />
                 </x-card>
             @empty
                 <div class="rounded-xl border border-dashed border-stone-300 bg-white">

@@ -106,7 +106,7 @@
         </x-card>
     </div>
 
-    <x-card :title="__('All expenses')" :description="trans_choice(':count line|:count lines', $expenses->count())" flush class="mt-6">
+    <x-card id="expenses" :title="__('All expenses')" :description="trans_choice(':count line|:count lines', $expenses->total())" flush class="mt-6 scroll-mt-20">
         <x-table min-width="min-w-[900px]">
             <x-slot:head>
                 <tr>
@@ -139,5 +139,6 @@
                 </tr>
             @endforeach
         </x-table>
+        <x-pagination :paginator="$expenses" />
     </x-card>
 </x-layouts.app>

@@ -32,7 +32,7 @@
         <x-kpi-tile :label="__('Fuel bought')" :value="$summary->fuel > 0 ? Money::number($summary->fuel).' L' : '—'" icon="fuel" tone="amber" class="col-span-2 lg:col-span-1" />
     </div>
 
-    <x-card :title="__('Bills')" :description="__('Every expense tagged with this machine, newest first')" flush class="mt-6">
+    <x-card id="bills" :title="__('Bills')" :description="__('Every expense tagged with this machine, newest first')" flush class="mt-6 scroll-mt-20">
         <form method="GET" action="{{ route('machinery.machines.show', $machine) }}" class="flex flex-wrap items-center gap-2 border-b border-stone-100 px-5 py-3">
             <select name="season" onchange="this.form.submit()" class="form-control h-9 w-full py-0 pe-8 sm:w-auto" aria-label="{{ __('Season') }}">
                 <option value="">{{ __('All seasons') }}</option>
@@ -131,6 +131,7 @@
                     </td>
                 </tr>
             </x-table>
+            <x-pagination :paginator="$bills" />
         @endif
     </x-card>
 
